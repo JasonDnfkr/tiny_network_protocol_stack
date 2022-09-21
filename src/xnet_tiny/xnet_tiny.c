@@ -82,8 +82,8 @@ static xnet_err_t ethernet_out_to(xnet_protocol_t protocol, const uint8_t* dest_
     add_header(packet, sizeof(xether_hdr_t));
     ether_hdr = (xether_hdr_t*)packet->data;
 
-    memcpy(ether_hdr->dest, dest_mac_addr, XNET_CFG_PACKET_MAX_SIZE);
-    memcpy(ether_hdr->src, netif_mac, XNET_CFG_PACKET_MAX_SIZE);
+    memcpy(ether_hdr->dest, dest_mac_addr, XNET_MAC_ADDR_SIZE);
+    memcpy(ether_hdr->src, netif_mac, XNET_MAC_ADDR_SIZE);
     ether_hdr->protocol = swap_order16(protocol);
 
     //xnet_err_t res = xnet_driver_send(packet);
