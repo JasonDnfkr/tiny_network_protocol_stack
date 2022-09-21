@@ -1,6 +1,10 @@
 ﻿#include "xnet_tiny.h"
 
 #include <stdio.h>
+#include <string.h>
+
+static const xipaddr_t netif_ipaddr      = XNET_CFG_NETIF_IP;
+static const uint8_t   ether_broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 #define min(a, b)           ((a) > (b) ? (b) : (a))
 
@@ -12,6 +16,18 @@ static xnet_packet_t   tx_packet;
 static xnet_packet_t   rx_packet;
 
 static xarp_entry_t    arp_entry;
+
+
+/*  -- debug --  */
+static void print_arp_packet(const xarp_packet_t* arp_packet) {
+    printf("hardware type: %d\n", arp_packet->hw_type);
+    printf("protocol type: %d\n", arp_packet->pro_type);
+    printf("hardware length: %d\n", arp_packet->hw_len);
+    printf("protocol length: %d\n", arp_packet->pro_len);
+}
+
+
+
 
 xnet_packet_t* xnet_alloc_for_send(uint16_t data_size) {
     // data 的起始地址。相当于在 payload 数组中做了截断
@@ -45,25 +61,28 @@ static void truncate_packet(xnet_packet_t* packet, uint16_t size) {
 }
 
 static xnet_err_t ethernet_init(void) {
+    printf("ethernet_init\n");
+
     // 驱动将 mac 地址填充至此
     xnet_err_t err = xnet_driver_open(netif_mac);
 
     if (err < 0) return err;
 
-    return XNET_ERR_OK;
+    //return XNET_ERR_OK;
+    return xarp_make_request(&netif_ipaddr);
 }
 
 
 /*
-    @para mac_addr 对方的 mac 地址
+    @para dest_mac_addr 对方的 mac 地址
 */
-static xnet_err_t ethernet_out_to(xnet_protocol_t protocol, const uint8_t* mac_addr, xnet_packet_t* packet) {
+static xnet_err_t ethernet_out_to(xnet_protocol_t protocol, const uint8_t* dest_mac_addr, xnet_packet_t* packet) {
     xether_hdr_t* ether_hdr;
 
     add_header(packet, sizeof(xether_hdr_t));
     ether_hdr = (xether_hdr_t*)packet->data;
 
-    memcpy(ether_hdr->dest, mac_addr, XNET_CFG_PACKET_MAX_SIZE);
+    memcpy(ether_hdr->dest, dest_mac_addr, XNET_CFG_PACKET_MAX_SIZE);
     memcpy(ether_hdr->src, netif_mac, XNET_CFG_PACKET_MAX_SIZE);
     ether_hdr->protocol = swap_order16(protocol);
 
@@ -106,9 +125,33 @@ void xarp_init(void) {
 }
 
 
+xnet_err_t xarp_make_request(const xipaddr_t* ipaddr) {
+    printf("xarp_make_request\n");
+
+    xnet_packet_t* packet = xnet_alloc_for_send(sizeof(xarp_packet_t));
+    xarp_packet_t* arp_packet = (xarp_packet_t*)packet->data;
+
+    arp_packet->hw_type  = swap_order16(XARP_HW_ETHER);
+    arp_packet->pro_type = swap_order16(XNET_PROTOCOL_IP);
+    arp_packet->hw_len   = XNET_MAC_ADDR_SIZE;
+    arp_packet->pro_len  = XNET_IPV4_ADDR_SIZE;
+    arp_packet->opcode   = swap_order16(XARP_REQUEST);
+
+    memcpy(arp_packet->sender_mac, netif_mac, XNET_MAC_ADDR_SIZE);
+    memcpy(arp_packet->sender_ip, netif_ipaddr.array, XNET_IPV4_ADDR_SIZE);
+    memset(arp_packet->target_mac, 0, XNET_MAC_ADDR_SIZE);
+    memcpy(arp_packet->target_ip, ipaddr->array, XNET_IPV4_ADDR_SIZE);
+    
+    print_arp_packet(arp_packet);
+    
+    return ethernet_out_to(XNET_PROTOCOL_ARP, ether_broadcast, packet);
+
+}
+
 
 void xnet_init(void) {
     ethernet_init();
+    xarp_init();
 }
 
 
@@ -117,3 +160,7 @@ void xnet_poll(void) {
     // 有包则去 ethernet_poll() 处理
     ethernet_poll(); 
 }
+
+
+
+
