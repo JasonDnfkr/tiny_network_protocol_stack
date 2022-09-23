@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static const xipaddr_t netif_ipaddr      = XNET_CFG_NETIF_IP;
 static const uint8_t   ether_broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -14,9 +15,25 @@ static uint8_t         netif_mac[XNET_MAC_ADDR_SIZE];
 
 static xnet_packet_t   tx_packet;
 static xnet_packet_t   rx_packet;
-
 static xarp_entry_t    arp_entry;
+static xnet_time_t     arp_timer;
 
+// 检查 timeout 情况
+// 如果第二个参数 sec 为 0，则获取当前时间给 time
+int xnet_check_tmo(xnet_time_t* time, uint32_t sec) {
+    xnet_time_t curr = xsys_get_time();
+
+    if (sec == 0) {
+        *time = curr;
+        return 0;
+    }
+    else if (curr - *time >= sec) {
+        *time = curr;
+        return 1;
+    }
+
+    return 0;
+}
 
 /*  -- debug --  */
 static void print_arp_packet(const xarp_packet_t* arp_packet) {
@@ -122,13 +139,14 @@ static void ethernet_poll(void) {
 
 void xarp_init(void) {
     arp_entry.state = XARP_ENTRY_FREE;
+    xnet_check_tmo(&arp_timer, 0);
 }
 
 
 xnet_err_t xarp_make_request(const xipaddr_t* ipaddr) {
     printf("xarp_make_request\n");
 
-    xnet_packet_t* packet = xnet_alloc_for_send(sizeof(xarp_packet_t));
+    xnet_packet_t* packet     = xnet_alloc_for_send(sizeof(xarp_packet_t));
     xarp_packet_t* arp_packet = (xarp_packet_t*)packet->data;
 
     arp_packet->hw_type  = swap_order16(XARP_HW_ETHER);
@@ -148,6 +166,42 @@ xnet_err_t xarp_make_request(const xipaddr_t* ipaddr) {
 
 }
 
+static void update_arp_entry(uint8_t* src_ip, uint8_t* mac_addr) {
+    memcpy(arp_entry.ipaddr.array, src_ip, XNET_IPV4_ADDR_SIZE);
+    memcpy(arp_entry.macaddr, mac_addr, XNET_MAC_ADDR_SIZE);
+    arp_entry.state     = XARP_ENTRY_OK;
+    arp_entry.tmo       = XARP_CFG_ENTRY_OK_TMO;
+    arp_entry.retry_cnt = XARP_CFG_MAX_RETRIES;
+}
+
+void xarp_poll(void) {
+    if (xnet_check_tmo(&arp_timer, 0)) {
+        switch (arp_entry.state) {
+        case XARP_ENTRY_OK:
+            if (--arp_entry.tmo == 0) { // timeout 时间为 0
+                xarp_make_request(&arp_entry.ipaddr); // 超时重传
+                arp_entry.state = XARP_ENTRY_PENDING; // 设置为等待状态
+                arp_entry.tmo   = XARP_CFG_ENTRY_PENDING_TMO; // 将 timeout 设置为标准值
+            }
+            break;
+
+        case XARP_ENTRY_PENDING:
+            if (--arp_entry.tmo == 0) {
+                if (arp_entry.retry_cnt-- == 0) {
+                    arp_entry.state = XARP_ENTRY_FREE;
+                }
+                else {
+                    xarp_make_request(&arp_entry.ipaddr); // 超时重传
+                    arp_entry.state = XARP_ENTRY_PENDING; // 设置为等待状态
+                    arp_entry.tmo = XARP_CFG_ENTRY_PENDING_TMO; // 将 timeout 设置为标准值
+                }
+            }
+        }
+        
+
+    }
+}
+
 
 void xnet_init(void) {
     ethernet_init();
@@ -158,9 +212,12 @@ void xnet_init(void) {
 void xnet_poll(void) {
     // 调用以太网查询函数看看有没有包
     // 有包则去 ethernet_poll() 处理
-    ethernet_poll(); 
+    ethernet_poll();
+    xarp_poll();
 }
 
 
-
+const xnet_time_t xsys_get_time(void) {
+    return clock() / CLOCKS_PER_SEC;
+}
 

@@ -9,6 +9,10 @@
 
 #define XNET_MAC_ADDR_SIZE			6
 #define XNET_IPV4_ADDR_SIZE			4
+#define XARP_CFG_ENTRY_OK_TMO		(5)
+#define XARP_CFG_ENTRY_PENDING_TMO	(1)
+#define XARP_CFG_MAX_RETRIES		4
+
 
 // 报头
 #pragma pack(0)
@@ -70,31 +74,39 @@ typedef enum _xnet_protocol_t {
 
 
 typedef union _xipaddr_t {
-	uint8_t    array[XNET_IPV4_ADDR_SIZE];
-	uint32_t   addr;
+	uint8_t     array[XNET_IPV4_ADDR_SIZE];
+	uint32_t    addr;
 } xipaddr_t;
 
 #define XARP_ENTRY_FREE				0
+#define XARP_ENTRY_OK				1
+#define XARP_ENTRY_PENDING			2
+#define XARP_TIMER_PERIOD			1  // 每隔 1 秒检查
 
+// ARP 表
 typedef struct _xarp_entry_t {
-	xipaddr_t  ipaddr;						// ip 地址
-	uint8_t    macaddr[XNET_MAC_ADDR_SIZE];	// mac 地址
-	uint8_t	   state;						// 有效 / 无效 / 请求中
-	uint16_t   tmo;							// 超过一定时间重新请求，避免无效 / 错误表项长期存在
-	uint8_t    retry_cnt;					// 重试次数
+	xipaddr_t   ipaddr;						// ip 地址
+	uint8_t     macaddr[XNET_MAC_ADDR_SIZE];	// mac 地址
+	uint8_t	    state;						// 有效 / 无效 / 请求中
+	uint16_t    tmo;							// 超过一定时间重新请求，避免无效 / 错误表项长期存在
+	uint8_t     retry_cnt;					// 重试次数
 } xarp_entry_t;
+
+// 获取系统时间
+typedef uint32_t xnet_time_t;
+const xnet_time_t xsys_get_time(void);
 
 
 void xarp_init(void);
-
 xnet_err_t xarp_make_request(const xipaddr_t* ipaddr);
+void xarp_in(xnet_packet_t* packet);
+void xarp_poll(void);
 
 
 // 驱动打开，发送，读取
 xnet_err_t xnet_driver_open(uint8_t* mac_addr);
 xnet_err_t xnet_driver_send(xnet_packet_t* packet);
 xnet_err_t xnet_driver_read(xnet_packet_t** packet);
-
 
 #endif // XNET_TINY_H
 
