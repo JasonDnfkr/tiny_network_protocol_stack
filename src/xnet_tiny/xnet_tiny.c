@@ -260,32 +260,38 @@ void xarp_in(xnet_packet_t* packet) {
     }
 }
 
-
+// arp 表 存在时间查询
 void xarp_poll(void) {
     if (xnet_check_tmo(&arp_timer, XARP_TIMER_PERIOD)) {
         switch (arp_entry.state) {
         case XARP_ENTRY_OK:
             if (--arp_entry.tmo == 0) { // timeout 时间为 0
+                printf("\n[arp time out. change arp status to pending.]\n");
                 xarp_make_request(&arp_entry.ipaddr); // 超时重传
                 arp_entry.state = XARP_ENTRY_PENDING; // 设置为等待状态
                 arp_entry.tmo   = XARP_CFG_ENTRY_PENDING_TMO; // 将 timeout 设置为标准值
+                printf("[arp time out. request resend.]\n");
             }
             break;
 
         case XARP_ENTRY_PENDING:
             if (--arp_entry.tmo == 0) {
+                printf("[retry_cnt: %d]\n", arp_entry.retry_cnt);
                 if (arp_entry.retry_cnt-- == 0) {
+                    printf("[retry_cnt is 0 now. ARP_FREE]\n");
                     arp_entry.state = XARP_ENTRY_FREE;
                 }
                 else {
                     xarp_make_request(&arp_entry.ipaddr); // 超时重传
                     arp_entry.state = XARP_ENTRY_PENDING; // 设置为等待状态
-                    arp_entry.tmo = XARP_CFG_ENTRY_PENDING_TMO; // 将 timeout 设置为标准值
+                    arp_entry.tmo   = XARP_CFG_ENTRY_PENDING_TMO; // 将 timeout 设置为标准值
+                    printf("[arp time out. request resend.]\n");
                 }
             }
+        case XARP_ENTRY_FREE:
+            printf(".");
+            break;
         }
-        
-
     }
 }
 
@@ -300,7 +306,7 @@ void xnet_poll(void) {
     // 调用以太网查询函数看看有没有包
     // 有包则去 ethernet_poll() 处理
     ethernet_poll();
-    //xarp_poll();
+    xarp_poll();
 }
 
 
