@@ -9,7 +9,9 @@ static const uint8_t   ether_broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff 
 
 #define min(a, b)           ((a) > (b) ? (b) : (a))
 
-#define swap_order16(v)     (((v) & 0xff) << 8) | (((v) >> 8) & 0xff)
+#define swap_order16(v)    ( (((v) & 0xff) << 8) | (((v) >> 8) & 0xff) )
+#define xipaddr_is_equal_buf(addr, buf) (memcmp((addr)->array, (buf), XNET_IPV4_ADDR_SIZE) == 0)
+
 
 static uint8_t         netif_mac[XNET_MAC_ADDR_SIZE];
 
@@ -122,6 +124,8 @@ static void ethernet_in(xnet_packet_t* packet) {
     switch (protocol) {
     case XNET_PROTOCOL_ARP:
         printf("received ARP protocol\n");
+        remove_header(packet, sizeof(xether_hdr_t));
+        xarp_in(packet);
         break;
     case XNET_PROTOCOL_IP:
         break;
@@ -142,9 +146,9 @@ void xarp_init(void) {
     xnet_check_tmo(&arp_timer, 0);
 }
 
-
+// 发送 ARP REQUEST 包
 xnet_err_t xarp_make_request(const xipaddr_t* ipaddr) {
-    printf("xarp_make_request\n");
+    printf("\nxarp_make_request : %d\n", xsys_get_time());
 
     xnet_packet_t* packet     = xnet_alloc_for_send(sizeof(xarp_packet_t));
     xarp_packet_t* arp_packet = (xarp_packet_t*)packet->data;
@@ -163,9 +167,34 @@ xnet_err_t xarp_make_request(const xipaddr_t* ipaddr) {
     print_arp_packet(arp_packet);
     
     return ethernet_out_to(XNET_PROTOCOL_ARP, ether_broadcast, packet);
-
 }
 
+
+// 发送 ARP RESPONSE 包
+xnet_err_t xarp_make_response(xarp_packet_t* arp_packet) {
+    printf("\nxarp_make_response : %d\n", xsys_get_time());
+
+    xnet_packet_t* packet = xnet_alloc_for_send(sizeof(xarp_packet_t));
+    xarp_packet_t* response_packet = (xarp_packet_t*)packet->data;
+
+    response_packet->hw_type = swap_order16(XARP_HW_ETHER);
+    response_packet->pro_type = swap_order16(XNET_PROTOCOL_IP);
+    response_packet->hw_len = XNET_MAC_ADDR_SIZE;
+    response_packet->pro_len = XNET_IPV4_ADDR_SIZE;
+    response_packet->opcode = swap_order16(XARP_REPLY);
+
+    memcpy(response_packet->sender_mac, netif_mac, XNET_MAC_ADDR_SIZE);
+    memcpy(response_packet->sender_ip, netif_ipaddr.array, XNET_IPV4_ADDR_SIZE);
+    memcpy(response_packet->target_mac, arp_packet->sender_mac, XNET_MAC_ADDR_SIZE);
+    memcpy(response_packet->target_ip, arp_packet->sender_ip, XNET_IPV4_ADDR_SIZE);
+
+    print_arp_packet(response_packet);
+
+    return ethernet_out_to(XNET_PROTOCOL_ARP, arp_packet->sender_mac, packet);
+}
+
+
+// 更新 ARP 表
 static void update_arp_entry(uint8_t* src_ip, uint8_t* mac_addr) {
     memcpy(arp_entry.ipaddr.array, src_ip, XNET_IPV4_ADDR_SIZE);
     memcpy(arp_entry.macaddr, mac_addr, XNET_MAC_ADDR_SIZE);
@@ -174,8 +203,66 @@ static void update_arp_entry(uint8_t* src_ip, uint8_t* mac_addr) {
     arp_entry.retry_cnt = XARP_CFG_MAX_RETRIES;
 }
 
+
+// 接收 ARP 包
+void xarp_in(xnet_packet_t* packet) {
+    if (packet->size >= sizeof(xarp_packet_t)) {
+        xarp_packet_t* arp_packet = (xarp_packet_t*)packet->data;
+        uint16_t opcode = swap_order16(arp_packet->opcode);
+
+        if ((swap_order16(arp_packet->hw_type) != XARP_HW_ETHER) ||
+            (arp_packet->hw_len != XNET_MAC_ADDR_SIZE) ||
+            (swap_order16(arp_packet->pro_type) != XNET_PROTOCOL_IP) ||
+            (arp_packet->pro_len != XNET_IPV4_ADDR_SIZE)
+            || ((opcode != XARP_REQUEST) && (opcode != XARP_REPLY))) {
+            printf("invalid arp packet\n");
+            return;
+        }
+
+        //if (swap_order16(arp_packet->hw_type) != XARP_HW_ETHER) {
+        //    printf("swap_order16(arp_packet->hw_type) != XARP_HW_ETHER\n");
+        //    printf("hw type(swaped): %d    XARP_HW_ETHER: %d\n", swap_order16(arp_packet->hw_type), XARP_HW_ETHER);
+        //    return;
+        //}
+        //if (arp_packet->hw_len != XNET_MAC_ADDR_SIZE) {
+        //    printf("arp_packet->hw_len != XNET_MAC_ADDR_SIZE\n");
+        //    printf("hw len: %d    XNET_MAC_ADDR_SIZE: %d\n", arp_packet->hw_len, XNET_MAC_ADDR_SIZE);
+        //    return;
+        //}
+        //if (swap_order16(arp_packet->pro_type) != XNET_PROTOCOL_IP) {
+        //    printf("swap_order16(arp_packet->pro_type) != XNET_PROTOCOL_IP\n");
+        //    printf("pro type(swaped): %d    XNET_PROTOCOL_IP: %d\n", swap_order16(arp_packet->pro_type), XNET_PROTOCOL_IP);
+        //    return;
+        //}
+        //if (arp_packet->pro_len != XNET_IPV4_ADDR_SIZE) {
+        //    printf("arp_packet->pro_len != XNET_IPV4_ADDR_SIZE\n");
+        //    printf("pro len: %d    XNET_IPV4_ADDR_SIZE %d\n", arp_packet->pro_len, XNET_IPV4_ADDR_SIZE);
+        //    return;
+        //}
+        //if ((opcode != XARP_REQUEST) && (opcode != XARP_REPLY)) {
+        //    printf("(opcode != XARP_REQUEST) && (opcode != XARP_REPLY)\n");
+        //    printf("opcode: %d\n   XARP_REQUEST: %d,  XARP_REPLY: %d\n", opcode, XARP_REQUEST, XARP_REPLY);
+        //    return;
+        //}
+
+        if (!xipaddr_is_equal_buf(&netif_ipaddr, arp_packet->target_ip)) {
+            return;
+        }
+
+        switch (opcode) {
+        case XARP_REQUEST:
+            xarp_make_response(arp_packet);
+            update_arp_entry(arp_packet->sender_ip, arp_packet->sender_mac);
+            break;
+        case XARP_REPLY:
+            break;
+        }
+    }
+}
+
+
 void xarp_poll(void) {
-    if (xnet_check_tmo(&arp_timer, 0)) {
+    if (xnet_check_tmo(&arp_timer, XARP_TIMER_PERIOD)) {
         switch (arp_entry.state) {
         case XARP_ENTRY_OK:
             if (--arp_entry.tmo == 0) { // timeout 时间为 0
@@ -213,7 +300,7 @@ void xnet_poll(void) {
     // 调用以太网查询函数看看有没有包
     // 有包则去 ethernet_poll() 处理
     ethernet_poll();
-    xarp_poll();
+    //xarp_poll();
 }
 
 

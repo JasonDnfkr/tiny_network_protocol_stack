@@ -14,24 +14,26 @@
 #define XARP_CFG_MAX_RETRIES		4
 
 
-// 报头
+
 #pragma pack(0)
+// 以太网首部
 typedef struct _xether_hdr_t {
-	uint8_t     dest[XNET_MAC_ADDR_SIZE];
-	uint8_t     src[XNET_MAC_ADDR_SIZE];
-	uint16_t    protocol;
+	uint8_t     dest[XNET_MAC_ADDR_SIZE];	// 目的 ip
+	uint8_t     src[XNET_MAC_ADDR_SIZE];	// 源 ip
+	uint16_t    protocol;					// 协议类型
 } xether_hdr_t;
 
 #define XARP_HW_ETHER				0x1
 #define XARP_REQUEST				0x1
 #define XARP_REPLY					0x2
 
+// ARP 数据包
 typedef struct _xarp_packet_t {
-	uint16_t	hw_type;
-	uint16_t	pro_type;
-	uint8_t		hw_len;
-	uint8_t		pro_len;
-	uint16_t	opcode;
+	uint16_t	hw_type;	// hardware type ( ethernet (1) )
+	uint16_t	pro_type;	// protocol type ( ipv4 0x0800, arp 0x0806 )
+	uint8_t		hw_len;		// hardware size 6 (mac)
+	uint8_t		pro_len;	// protocol size 4 (ipv4)
+	uint16_t	opcode;		// ARP REQ: 1, ARP RSP: 2, RARP REQ: 3, RARP RSP: 4
 
 	uint8_t		sender_mac[XNET_MAC_ADDR_SIZE];
 	uint8_t		sender_ip[XNET_IPV4_ADDR_SIZE];
