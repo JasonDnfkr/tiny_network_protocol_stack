@@ -1,3 +1,1 @@
-﻿  xnet_tiny.c
-E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\src\xnet_tiny\xnet_tiny.h(18,9): warning C4086: pragma 参数应为 "1"、"2"、"4"、"8" 或者 "16"
-  xnet.vcxproj -> E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\x64\Debug\xnet.exe
+﻿  xnet.vcxproj -> E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\x64\Debug\xnet.exe

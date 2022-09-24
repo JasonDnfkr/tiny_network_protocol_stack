@@ -15,7 +15,7 @@
 
 
 
-#pragma pack(0)
+#pragma pack(1)
 // 以太网首部
 typedef struct _xether_hdr_t {
 	uint8_t     dest[XNET_MAC_ADDR_SIZE];	// 目的 ip
@@ -99,11 +99,36 @@ typedef uint32_t xnet_time_t;
 const xnet_time_t xsys_get_time(void);
 
 
+// ARP 协议处理
+
 void xarp_init(void);
 xnet_err_t xarp_make_request(const xipaddr_t* ipaddr);
 void xarp_in(xnet_packet_t* packet);
 void xarp_poll(void);
 
+// ip 协议处理
+
+#define XNET_VERSION_IPV4	4
+
+#pragma pack(1)
+typedef struct _xip_hdr_t {
+	uint8_t		hdr_len : 4;
+	uint8_t		version : 4;
+	uint8_t		tos;
+	uint16_t	total_len;
+	uint16_t	id;
+	uint16_t	flags_fragment;
+	uint8_t		ttl;
+	uint8_t		protocol;
+	uint16_t	hdr_checksum;
+	uint8_t		src_ip[XNET_IPV4_ADDR_SIZE];
+	uint8_t		dest_ip[XNET_IPV4_ADDR_SIZE];
+} xip_hdr_t;
+#pragma pack()
+
+
+void xip_init(void);
+void xip_in(xnet_packet_t* packet);
 
 // 驱动打开，发送，读取
 xnet_err_t xnet_driver_open(uint8_t* mac_addr);

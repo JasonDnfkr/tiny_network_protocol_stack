@@ -128,6 +128,8 @@ static void ethernet_in(xnet_packet_t* packet) {
         xarp_in(packet);
         break;
     case XNET_PROTOCOL_IP:
+        remove_header(packet, sizeof(xether_hdr_t));
+        xip_in(packet);
         break;
     }
 }
@@ -296,9 +298,76 @@ void xarp_poll(void) {
 }
 
 
+// 校验和
+static uint16_t checksum16(uint16_t* buf, uint16_t len, uint16_t pre_sum, int complement) {
+    uint32_t checksum = 0; //pre_sum
+    uint16_t high;
+
+    while (len > 1) {
+        checksum += *buf++;
+        len -= 2;
+    }
+
+    if (len > 0) {
+        checksum += *(uint8_t*)buf;
+    }
+
+    while ((high = checksum >> 16) != 0) {
+        checksum = high + (checksum & 0xffff);
+    }
+
+    return (uint16_t)~checksum;
+}
+
+void xip_init(void) {
+
+}
+
+
+void xip_in(xnet_packet_t* packet) {
+    xip_hdr_t*  iphdr = (xip_hdr_t*)packet->data;
+    uint32_t    header_size;
+    uint32_t    total_size;
+    uint16_t    pre_checksum;
+
+    if (iphdr->version != XNET_VERSION_IPV4) {
+        return;
+    }
+
+    header_size = iphdr->hdr_len * 4;
+    total_size  = swap_order16(iphdr->total_len);
+
+    if (header_size < sizeof(xip_hdr_t)) {
+        printf("\nip header size < xip_hdr_t\n");
+        return;
+    }
+    if (total_size < header_size) {
+        printf("\ntotal size < header_size\n");
+        return;
+    }
+
+    pre_checksum = iphdr->hdr_checksum;
+    iphdr->hdr_checksum = 0;
+    if (pre_checksum != checksum16((uint16_t*)iphdr, header_size, 0, 1)) {
+        printf("\nchecksum failed\n");
+        return;
+    }
+
+    if (!xipaddr_is_equal_buf(&netif_ipaddr, iphdr->dest_ip)) {
+        return;
+    }
+
+    switch (iphdr->protocol) {
+    default:
+        break;
+    }
+}
+
+
 void xnet_init(void) {
     ethernet_init();
     xarp_init();
+    xip_init();
 }
 
 
