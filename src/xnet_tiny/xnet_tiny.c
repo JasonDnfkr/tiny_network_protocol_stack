@@ -11,6 +11,8 @@ static const uint8_t   ether_broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff 
 
 #define swap_order16(v)    ( (((v) & 0xff) << 8) | (((v) >> 8) & 0xff) )
 #define xipaddr_is_equal_buf(addr, buf) (memcmp((addr)->array, (buf), XNET_IPV4_ADDR_SIZE) == 0)
+#define xipaddr_is_equal(addr1, addr2) ( (addr1)->addr == (addr2)->addr )
+#define xipaddr_from_buf(dest, buf) ( (dest)->addr = *(uint32_t*)(buf) )
 
 
 static uint8_t         netif_mac[XNET_MAC_ADDR_SIZE];
@@ -65,11 +67,14 @@ xnet_packet_t* xnet_alloc_for_read(uint16_t data_size) {
     return &rx_packet;
 }
 
+// 增加包头，会自动更新 size 和 data 的位置
 static void add_header(xnet_packet_t* packet, uint16_t header_size) {
     packet->data -= header_size;
     packet->size += header_size;
 }
 
+
+// 移除包头，会自动更新 size 和 data 的位置
 static void remove_header(xnet_packet_t* packet, uint16_t header_size) {
     packet->data += header_size;
     packet->size -= header_size;
@@ -95,6 +100,7 @@ static xnet_err_t ethernet_init(void) {
 /*
     @para dest_mac_addr 对方的 mac 地址
 */
+// 根据协议、mac 地址发出以太网包
 static xnet_err_t ethernet_out_to(xnet_protocol_t protocol, const uint8_t* dest_mac_addr, xnet_packet_t* packet) {
     xether_hdr_t* ether_hdr;
 
@@ -108,6 +114,18 @@ static xnet_err_t ethernet_out_to(xnet_protocol_t protocol, const uint8_t* dest_
     //xnet_err_t res = xnet_driver_send(packet);
     //return res;
     return xnet_driver_send(packet);
+}
+
+// 根据 ip 发出以太网包
+static xnet_err_t ethernet_out(xipaddr_t* dest_ip, xnet_packet_t* packet) {
+    xnet_err_t err;
+    uint8_t*   mac_addr = NULL;
+
+    if ((err = xarp_resolve(dest_ip, &mac_addr)) == XNET_ERR_OK) {
+        return ethernet_out_to(XNET_PROTOCOL_IP, mac_addr, packet);
+    }
+
+    return err;
 }
 
 
@@ -193,6 +211,18 @@ xnet_err_t xarp_make_response(xarp_packet_t* arp_packet) {
     print_arp_packet(response_packet);
 
     return ethernet_out_to(XNET_PROTOCOL_ARP, arp_packet->sender_mac, packet);
+}
+
+
+// 从 ip 地址解析出 mac 地址
+xnet_err_t xarp_resolve(const xipaddr_t* ipaddr, uint8_t** mac_addr) {
+    if ((arp_entry.state == XARP_ENTRY_OK) && xipaddr_is_equal(ipaddr, &arp_entry.ipaddr)) {
+        *mac_addr = arp_entry.macaddr;
+        return XNET_ERR_OK;
+    }
+
+    xarp_make_request(ipaddr);
+    return XNET_ERR_NONE;
 }
 
 
@@ -329,6 +359,7 @@ void xip_in(xnet_packet_t* packet) {
     uint32_t    header_size;
     uint32_t    total_size;
     uint16_t    pre_checksum;
+    xipaddr_t   src_ip;
 
     if (iphdr->version != XNET_VERSION_IPV4) {
         return;
@@ -357,9 +388,85 @@ void xip_in(xnet_packet_t* packet) {
         return;
     }
 
+    xipaddr_from_buf(&src_ip, iphdr->src_ip);
+
     switch (iphdr->protocol) {
+    case XNET_PROTOCOL_ICMP:
+        remove_header(packet, header_size);
+        xicmp_in(&src_ip, packet);
     default:
         break;
+    }
+}
+
+
+xnet_err_t xip_out(xnet_protocol_t protocol, xipaddr_t* dest_ip, xnet_packet_t* packet) {
+    static uint32_t ip_packet_id = 0;
+    xip_hdr_t* iphdr;
+
+    add_header(packet, sizeof(xip_hdr_t));
+    iphdr = (xip_hdr_t*)packet->data;
+
+    iphdr->version        = XNET_VERSION_IPV4;
+    iphdr->hdr_len        = sizeof(xip_hdr_t) / 4;
+    iphdr->tos            = 0;
+    iphdr->total_len      = swap_order16(packet->size);
+    iphdr->id             = swap_order16(ip_packet_id);
+    iphdr->flags_fragment = 0;
+    iphdr->ttl            = XNET_IP_DEFAULT_TTL;
+    iphdr->protocol       = protocol;
+
+    memcpy(iphdr->src_ip, &netif_ipaddr.array, XNET_IPV4_ADDR_SIZE);
+    memcpy(iphdr->dest_ip, dest_ip->array, XNET_IPV4_ADDR_SIZE);
+
+    iphdr->hdr_checksum   = 0;
+    iphdr->hdr_checksum   = checksum16((uint16_t*)iphdr, sizeof(xip_hdr_t), 0, 1);
+    
+    ip_packet_id++;
+
+    return ethernet_out(dest_ip, packet);
+}
+
+
+void xicmp_init(void) { 
+
+}
+
+
+static xnet_err_t reply_icmp_request(xicmp_hdr_t* icmp_hdr, xipaddr_t* src_ip, xnet_packet_t* packet) {
+    xnet_packet_t* tx = xnet_alloc_for_send(packet->size);
+    // 传进来的 packet 是一个完整的带 icmp 报头的数据包
+    // 所以指针可以直接指向 data
+    xicmp_hdr_t* reply_hdr = (xicmp_hdr_t*)tx->data;
+
+    reply_hdr->type     = XICMP_CODE_ECHO_REPLY;
+    reply_hdr->code     = 0;
+    reply_hdr->id       = icmp_hdr->id;
+    reply_hdr->seq      = icmp_hdr->seq;
+    reply_hdr->checksum = 0;
+
+    memcpy((uint8_t*)reply_hdr + sizeof(xicmp_hdr_t), (uint8_t*)icmp_hdr + sizeof(xicmp_hdr_t), packet->size - sizeof(xicmp_hdr_t));
+
+    printf("data (32 bytes): ");
+
+    uint8_t* ptr = (uint8_t*)icmp_hdr + sizeof(xicmp_hdr_t);
+
+    for (int i = 0; i < 32; i++) {
+        printf("%c", *(ptr + i));
+    }
+    printf("\n");
+
+    reply_hdr->checksum = checksum16((uint16_t*)reply_hdr, tx->size, 0, 1);
+
+    return xip_out(XNET_PROTOCOL_ICMP, src_ip, tx);
+}
+
+
+void xicmp_in(xipaddr_t* src_ip, xnet_packet_t* packet) {
+    xicmp_hdr_t* icmphdr = (xicmp_hdr_t*)packet->data;
+    
+    if ((packet->size >= sizeof(xicmp_hdr_t)) && (icmphdr->type == XICMP_CODE_ECHO_REQUEST)) {
+        reply_icmp_request(icmphdr, src_ip, packet);
     }
 }
 
@@ -368,6 +475,7 @@ void xnet_init(void) {
     ethernet_init();
     xarp_init();
     xip_init();
+    xicmp_init();
 }
 
 
