@@ -394,7 +394,9 @@ void xip_in(xnet_packet_t* packet) {
     case XNET_PROTOCOL_ICMP:
         remove_header(packet, header_size);
         xicmp_in(&src_ip, packet);
+        break;
     default:
+        xicmp_dest_unreach(XICMP_CODE_PRO_UNREACH, iphdr);
         break;
     }
 }
@@ -469,6 +471,34 @@ void xicmp_in(xipaddr_t* src_ip, xnet_packet_t* packet) {
         reply_icmp_request(icmphdr, src_ip, packet);
     }
 }
+
+
+// ICMP 不可达
+xnet_err_t xicmp_dest_unreach(uint8_t code, xip_hdr_t* ip_hdr) {
+    xicmp_hdr_t* icmp_hdr;
+    xnet_packet_t* packet;
+    xipaddr_t dest_ip;
+
+    uint16_t ip_hdr_size  = ip_hdr->hdr_len * 4;
+    uint16_t ip_data_size = swap_order16(ip_hdr->total_len) - ip_hdr_size;
+    ip_data_size = ip_hdr_size + min(ip_data_size, 8);
+
+    packet = xnet_alloc_for_send(sizeof(xicmp_hdr_t) + ip_data_size);
+
+    icmp_hdr       = (xicmp_hdr_t*)packet->data;
+    icmp_hdr->type = XICMP_TYPE_UNREACH;
+    icmp_hdr->id   = 0;
+    icmp_hdr->seq  = 0;
+    memcpy((uint8_t*)icmp_hdr + sizeof(xicmp_hdr_t), ip_hdr, ip_data_size);
+    icmp_hdr->checksum = 0;
+    icmp_hdr->checksum = checksum16((uint16_t*)icmp_hdr, packet->size, 0, 0);
+
+    xipaddr_from_buf(&dest_ip, ip_hdr->src_ip);
+
+    return xip_out(XNET_PROTOCOL_ICMP, &dest_ip, packet);
+}
+
+
 
 
 void xnet_init(void) {

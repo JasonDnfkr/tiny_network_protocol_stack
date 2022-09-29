@@ -154,8 +154,13 @@ typedef struct _xicmp_hdr_t {
 #define XICMP_CODE_ECHO_REQUEST		8
 #define XICMP_CODE_ECHO_REPLY		0
 
+#define XICMP_TYPE_UNREACH			3
+#define XICMP_CODE_PORT_UNREACH		3
+#define XICMP_CODE_PRO_UNREACH		2
+
 void xicmp_init(void);
 void xicmp_in(xipaddr_t* src_ip, xnet_packet_t* packet);
+xnet_err_t xicmp_dest_unreach(uint8_t code, xip_hdr_t* ip_hdr);
 
 
 // 驱动打开，发送，读取
