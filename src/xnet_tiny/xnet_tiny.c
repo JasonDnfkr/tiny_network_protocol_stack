@@ -383,6 +383,7 @@ void xip_in(xnet_packet_t* packet) {
         printf("\nchecksum failed\n");
         return;
     }
+    iphdr->hdr_checksum = pre_checksum;
 
     if (!xipaddr_is_equal_buf(&netif_ipaddr, iphdr->dest_ip)) {
         return;
@@ -396,7 +397,7 @@ void xip_in(xnet_packet_t* packet) {
         xicmp_in(&src_ip, packet);
         break;
     default:
-        xicmp_dest_unreach(XICMP_CODE_PRO_UNREACH, iphdr);
+        xicmp_dest_unreach(XICMP_CODE_PORT_UNREACH, iphdr);
         break;
     }
 }
