@@ -38,6 +38,27 @@
     <ClCompile Include="src\xnet_app\xserver_http.c">
       <Filter>xnet_app</Filter>
     </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_driver.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_packet.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_ether.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_arp.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_sys.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_ip.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_icmp.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lib\xnet\pcap_device.h">
@@ -51,6 +72,30 @@
     </ClInclude>
     <ClInclude Include="src\xnet_app\xserver_http.h">
       <Filter>xnet_app</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_icmp.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_define_cfg.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_arp.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_driver.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_ether.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_ip.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_packet.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_sys.h">
+      <Filter>xnet_tiny</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

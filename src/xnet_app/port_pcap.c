@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../xnet_tiny/include/xnet_define_cfg.h"
+#include "../xnet_tiny/include/xnet_packet.h"
+
 static pcap_t* pcap;
 
 // VirtualBox 在本地设置的虚拟网卡的地址

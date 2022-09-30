@@ -24,12 +24,27 @@
     <ClCompile Include="src\xnet_app\port_pcap.c" />
     <ClCompile Include="src\xnet_app\xserver_datetime.c" />
     <ClCompile Include="src\xnet_app\xserver_http.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_arp.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_driver.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_ether.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_icmp.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_ip.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_packet.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_sys.c" />
     <ClCompile Include="src\xnet_tiny\xnet_tiny.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lib\xnet\pcap_device.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_arp.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_define_cfg.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_driver.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_ether.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_icmp.h" />
     <ClInclude Include="src\xnet_app\xserver_datetime.h" />
     <ClInclude Include="src\xnet_app\xserver_http.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_ip.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_packet.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_sys.h" />
     <ClInclude Include="src\xnet_tiny\xnet_tiny.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
