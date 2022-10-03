@@ -3,8 +3,6 @@
 
 #include "xnet_define_cfg.h"
 
-#define min(a, b)           ((a) < (b) ? (b) : (a))
-
 typedef struct _xnet_packet_t {
 	uint16_t    size;
 	uint8_t*	data;

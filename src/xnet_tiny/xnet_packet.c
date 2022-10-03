@@ -1,5 +1,7 @@
 #include "include/xnet_packet.h"
 
+#define min(a, b)           ((a) < (b) ? (b) : (a))
+
 xnet_packet_t* xnet_alloc_for_send(uint16_t data_size) {
     // data 的起始地址。相当于在 payload 数组中做了截断
     // 截断后高地址是数据内容，低地址是报头的预留位置

@@ -3,12 +3,14 @@
 #include "include/xnet_arp.h"
 #include "include/xnet_ip.h"
 #include "include/xnet_icmp.h"
+#include "include/xnet_udp.h"
 
 void xnet_init(void) {
     ethernet_init();
     xarp_init();
     xip_init();
     xicmp_init();
+    xudp_init();
 }
 
 

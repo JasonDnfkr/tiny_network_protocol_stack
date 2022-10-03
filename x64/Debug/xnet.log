@@ -1,12 +1,14 @@
 ﻿  app.c
   port_pcap.c
-E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\src\xnet_tiny\include\xnet_packet.h(6,1): warning C4005: “min”: 宏重定义
-C:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\shared\minwindef.h(197): message : 参见“min”的前一个定义
+  xserver_datetime.c
+E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\src\xnet_app\xserver_datetime.c(27,13): warning C4101: “err”: 未引用的局部变量
   xnet_arp.c
+  xnet_define_cfg.c
   xnet_driver.c
   xnet_ether.c
   xnet_icmp.c
   xnet_ip.c
   xnet_packet.c
+  xnet_udp.c
   正在生成代码...
   xnet.vcxproj -> E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\x64\Debug\xnet.exe

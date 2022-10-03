@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define min(a, b)           ((a) < (b) ? (b) : (a))
+
 void xicmp_init(void) {
 
 }

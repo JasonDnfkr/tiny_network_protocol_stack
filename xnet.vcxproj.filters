@@ -59,6 +59,12 @@
     <ClCompile Include="src\xnet_tiny\xnet_icmp.c">
       <Filter>xnet_tiny</Filter>
     </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_define_cfg.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xnet_tiny\xnet_udp.c">
+      <Filter>xnet_tiny</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lib\xnet\pcap_device.h">
@@ -95,6 +101,9 @@
       <Filter>xnet_tiny</Filter>
     </ClInclude>
     <ClInclude Include="src\xnet_tiny\include\xnet_sys.h">
+      <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_tiny\include\xnet_udp.h">
       <Filter>xnet_tiny</Filter>
     </ClInclude>
   </ItemGroup>
