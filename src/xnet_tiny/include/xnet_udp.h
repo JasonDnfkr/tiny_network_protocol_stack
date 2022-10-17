@@ -21,9 +21,24 @@ struct _xudp_t {
 };
 
 
+// UDP °üÍ·
+#pragma pack(1)
+typedef struct _xudp_hdr_t {
+	uint16_t   src_port;
+	uint16_t   dest_port;
+	uint16_t   total_len;
+	uint16_t   checksum;
+} xudp_hdr_t;
+
+#pragma pack()
+
+
 xudp_t udp_socket[XUDP_CFG_MAX_UDP];
 
 void xudp_init(void);
+
+void xudp_in(xudp_t* udp, xipaddr_t* src, xnet_packet_t* packet);
+
 xudp_t* xudp_open(xudp_handler_t handler);
 void xudp_close(xudp_t* udp);
 xudp_t* xudp_find(uint16_t port);

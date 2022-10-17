@@ -44,14 +44,14 @@ void xarp_init(void) {
 xnet_err_t xarp_make_request(const xipaddr_t* ipaddr) {
     printf("\nxarp_make_request : %d\n", xsys_get_time());
 
-    xnet_packet_t* packet = xnet_alloc_for_send(sizeof(xarp_packet_t));
+    xnet_packet_t* packet     = xnet_alloc_for_send(sizeof(xarp_packet_t));
     xarp_packet_t* arp_packet = (xarp_packet_t*)packet->data;
 
-    arp_packet->hw_type = swap_order16(XARP_HW_ETHER);
+    arp_packet->hw_type  = swap_order16(XARP_HW_ETHER);
     arp_packet->pro_type = swap_order16(XNET_PROTOCOL_IP);
-    arp_packet->hw_len = XNET_MAC_ADDR_SIZE;
-    arp_packet->pro_len = XNET_IPV4_ADDR_SIZE;
-    arp_packet->opcode = swap_order16(XARP_REQUEST);
+    arp_packet->hw_len   = XNET_MAC_ADDR_SIZE;
+    arp_packet->pro_len  = XNET_IPV4_ADDR_SIZE;
+    arp_packet->opcode   = swap_order16(XARP_REQUEST);
 
     memcpy(arp_packet->sender_mac, netif_mac, XNET_MAC_ADDR_SIZE);
     memcpy(arp_packet->sender_ip, netif_ipaddr.array, XNET_IPV4_ADDR_SIZE);
@@ -71,11 +71,11 @@ xnet_err_t xarp_make_response(xarp_packet_t* arp_packet) {
     xnet_packet_t* packet = xnet_alloc_for_send(sizeof(xarp_packet_t));
     xarp_packet_t* response_packet = (xarp_packet_t*)packet->data;
 
-    response_packet->hw_type = swap_order16(XARP_HW_ETHER);
+    response_packet->hw_type  = swap_order16(XARP_HW_ETHER);
     response_packet->pro_type = swap_order16(XNET_PROTOCOL_IP);
-    response_packet->hw_len = XNET_MAC_ADDR_SIZE;
-    response_packet->pro_len = XNET_IPV4_ADDR_SIZE;
-    response_packet->opcode = swap_order16(XARP_REPLY);
+    response_packet->hw_len   = XNET_MAC_ADDR_SIZE;
+    response_packet->pro_len  = XNET_IPV4_ADDR_SIZE;
+    response_packet->opcode   = swap_order16(XARP_REPLY);
 
     memcpy(response_packet->sender_mac, netif_mac, XNET_MAC_ADDR_SIZE);
     memcpy(response_packet->sender_ip, netif_ipaddr.array, XNET_IPV4_ADDR_SIZE);
@@ -104,8 +104,8 @@ xnet_err_t xarp_resolve(const xipaddr_t* ipaddr, uint8_t** mac_addr) {
 static void update_arp_entry(uint8_t* src_ip, uint8_t* mac_addr) {
     memcpy(arp_entry.ipaddr.array, src_ip, XNET_IPV4_ADDR_SIZE);
     memcpy(arp_entry.macaddr, mac_addr, XNET_MAC_ADDR_SIZE);
-    arp_entry.state = XARP_ENTRY_OK;
-    arp_entry.tmo = XARP_CFG_ENTRY_OK_TMO;
+    arp_entry.state     = XARP_ENTRY_OK;
+    arp_entry.tmo       = XARP_CFG_ENTRY_OK_TMO;
     arp_entry.retry_cnt = XARP_CFG_MAX_RETRIES;
 }
 
@@ -124,32 +124,6 @@ void xarp_in(xnet_packet_t* packet) {
             printf("invalid arp packet\n");
             return;
         }
-
-        //if (swap_order16(arp_packet->hw_type) != XARP_HW_ETHER) {
-        //    printf("swap_order16(arp_packet->hw_type) != XARP_HW_ETHER\n");
-        //    printf("hw type(swaped): %d    XARP_HW_ETHER: %d\n", swap_order16(arp_packet->hw_type), XARP_HW_ETHER);
-        //    return;
-        //}
-        //if (arp_packet->hw_len != XNET_MAC_ADDR_SIZE) {
-        //    printf("arp_packet->hw_len != XNET_MAC_ADDR_SIZE\n");
-        //    printf("hw len: %d    XNET_MAC_ADDR_SIZE: %d\n", arp_packet->hw_len, XNET_MAC_ADDR_SIZE);
-        //    return;
-        //}
-        //if (swap_order16(arp_packet->pro_type) != XNET_PROTOCOL_IP) {
-        //    printf("swap_order16(arp_packet->pro_type) != XNET_PROTOCOL_IP\n");
-        //    printf("pro type(swaped): %d    XNET_PROTOCOL_IP: %d\n", swap_order16(arp_packet->pro_type), XNET_PROTOCOL_IP);
-        //    return;
-        //}
-        //if (arp_packet->pro_len != XNET_IPV4_ADDR_SIZE) {
-        //    printf("arp_packet->pro_len != XNET_IPV4_ADDR_SIZE\n");
-        //    printf("pro len: %d    XNET_IPV4_ADDR_SIZE %d\n", arp_packet->pro_len, XNET_IPV4_ADDR_SIZE);
-        //    return;
-        //}
-        //if ((opcode != XARP_REQUEST) && (opcode != XARP_REPLY)) {
-        //    printf("(opcode != XARP_REQUEST) && (opcode != XARP_REPLY)\n");
-        //    printf("opcode: %d\n   XARP_REQUEST: %d,  XARP_REPLY: %d\n", opcode, XARP_REQUEST, XARP_REPLY);
-        //    return;
-        //}
 
         if (!xipaddr_is_equal_buf(&netif_ipaddr, arp_packet->target_ip)) {
             return;

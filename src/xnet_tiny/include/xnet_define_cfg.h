@@ -41,9 +41,10 @@
 
 // Ð­Òé´úÂë
 typedef enum _xnet_protocol_t {
-	XNET_PROTOCOL_ARP = 0x0806, // ARP  0x8086
-	XNET_PROTOCOL_IP = 0x0800, // IP   0x0800
+	XNET_PROTOCOL_ARP  = 0x0806, // ARP  0x8086
+	XNET_PROTOCOL_IP   = 0x0800, // IP   0x0800
 	XNET_PROTOCOL_ICMP = 0x1,	 // ICMP 0x1
+	XNET_PROTOCOL_UDP  = 17,	 // UDP  17
 } xnet_protocol_t;
 
 

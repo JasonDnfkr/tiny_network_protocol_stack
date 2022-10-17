@@ -2,6 +2,7 @@
 #define XNET_SYS_H
 
 #include <stdint.h>
+#include "xnet_define_cfg.h"
 
 //#define min(a, b)           ((a) > (b) ? (b) : (a))
 
@@ -17,7 +18,8 @@ const xnet_time_t xsys_get_time(void);
 // 校验和
 uint16_t checksum16(uint16_t* buf, uint16_t len, uint16_t pre_sum, int complement);
 
-
+// UDP 伪校验和
+uint16_t checksum_peso(const xipaddr_t* src_ip, const xipaddr_t* dest_ip, uint8_t protocol, uint16_t* buf, uint16_t len);
 
 
 #endif // !XNET_SYS_H

@@ -1,10 +1,41 @@
 #include "include/xnet_udp.h"
+#include "include/xnet_sys.h"
 
 #include <stdio.h>
 #include <string.h>
 
 void xudp_init() {
 	memset(udp_socket, 0, sizeof(udp_socket));
+}
+
+
+void xudp_in(xudp_t* udp, xipaddr_t* src_ip, xnet_packet_t* packet) {
+	xudp_hdr_t* udp_hdr = (xudp_hdr_t*)packet->data;
+	uint16_t pre_checksum;
+
+	if ((packet->size < sizeof(xudp_hdr_t)) || (packet->size < swap_order16(udp_hdr->total_len))) {
+		return;
+	}
+
+	pre_checksum = udp_hdr->checksum;
+	udp_hdr->checksum = 0;
+
+	// 如果接收的包 checksum 为 0，则不要检查。
+	// 非 0 才是需要检查
+	if (pre_checksum != 0) {
+		uint16_t checksum = checksum_peso(src_ip, &netif_ipaddr, XNET_PROTOCOL_UDP, (uint16_t*)udp_hdr, swap_order16(udp_hdr->total_len));
+		if (pre_checksum != checksum) {
+			printf("error: UDP checksum invalid\n");
+			return;
+		 }
+	}
+
+	remove_header(packet, sizeof(xudp_hdr_t));
+	uint16_t src_port = swap_order16(udp_hdr->src_port);
+	if (udp->handler) {
+		udp->handler(udp, src_ip, src_port, packet);
+	}
+
 }
 
 
