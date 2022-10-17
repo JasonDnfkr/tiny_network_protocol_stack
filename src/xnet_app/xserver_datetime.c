@@ -21,9 +21,8 @@ xnet_err_t datetime_handler(xudp_t* udp, xipaddr_t* src_ip, uint16_t src_port, x
 
 	// 发送
 	truncate_packet(tx_packet, str_size);
-	xudp_out(udp, src_ip, src_port, tx_packet);
-
-	return XNET_ERR_OK;
+	
+	return xudp_out(udp, src_ip, src_port, tx_packet);;
 }
 
 
