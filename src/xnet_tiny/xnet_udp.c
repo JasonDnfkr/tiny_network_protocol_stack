@@ -1,5 +1,6 @@
 #include "include/xnet_udp.h"
 #include "include/xnet_sys.h"
+#include "include/xnet_ip.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -30,12 +31,32 @@ void xudp_in(xudp_t* udp, xipaddr_t* src_ip, xnet_packet_t* packet) {
 		 }
 	}
 
+	printf("received UDP packet\n");
+
 	remove_header(packet, sizeof(xudp_hdr_t));
 	uint16_t src_port = swap_order16(udp_hdr->src_port);
 	if (udp->handler) {
 		udp->handler(udp, src_ip, src_port, packet);
 	}
+}
 
+xnet_err_t xudp_out(xudp_t* udp, xipaddr_t* dest_ip, uint16_t dest_port, xnet_packet_t* packet) {
+	xudp_hdr_t* udp_hdr;
+	uint16_t checksum;
+
+	add_header(packet, sizeof(xudp_hdr_t));
+	udp_hdr = (xudp_hdr_t*)packet->data;
+
+	udp_hdr->src_port  = swap_order16(udp->local_port);
+	udp_hdr->dest_port = swap_order16(dest_port);
+	udp_hdr->total_len = swap_order16(packet->size);
+	udp_hdr->checksum  = 0;
+
+	checksum = checksum_peso(&netif_ipaddr, dest_ip, XNET_PROTOCOL_UDP, (uint16_t*)udp_hdr, packet->size);
+
+	udp_hdr->checksum = checksum;
+
+	return xip_out(XNET_PROTOCOL_UDP, dest_ip, packet);
 }
 
 

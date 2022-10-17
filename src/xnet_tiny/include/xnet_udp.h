@@ -38,6 +38,7 @@ xudp_t udp_socket[XUDP_CFG_MAX_UDP];
 void xudp_init(void);
 
 void xudp_in(xudp_t* udp, xipaddr_t* src, xnet_packet_t* packet);
+xnet_err_t xudp_out(xudp_t* udp, xipaddr_t* dest_ip, uint16_t dest_port, xnet_packet_t* packet);
 
 xudp_t* xudp_open(xudp_handler_t handler);
 void xudp_close(xudp_t* udp);

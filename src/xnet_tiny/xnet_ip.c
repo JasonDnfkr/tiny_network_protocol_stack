@@ -54,6 +54,7 @@ void xip_in(xnet_packet_t* packet) {
     switch (iphdr->protocol) {
     case XNET_PROTOCOL_UDP:
         if (packet->size >= sizeof(xudp_hdr_t)) {
+            // 先让 udp 指针指向 IP 报头后的位置
             xudp_hdr_t* udp_hdr = (xudp_hdr_t*)(packet->data + header_size);
             xudp_t* udp = xudp_find(swap_order16(udp_hdr->dest_port));
             if (udp) {

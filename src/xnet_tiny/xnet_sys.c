@@ -26,6 +26,7 @@ uint16_t checksum16(uint16_t* buf, uint16_t len, uint16_t pre_sum, int complemen
     return complement ? (uint16_t)~checksum : checksum;
 }
 
+// 伪首部校验和
 uint16_t checksum_peso(const xipaddr_t* src_ip, const xipaddr_t* dest_ip, uint8_t protocol, uint16_t* buf, uint16_t len) {
     uint8_t zero_protocol[] = { 0, protocol };
     uint16_t c_len = swap_order16(len);

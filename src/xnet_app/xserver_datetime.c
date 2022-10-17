@@ -19,6 +19,10 @@ xnet_err_t datetime_handler(xudp_t* udp, xipaddr_t* src_ip, uint16_t src_port, x
 	timeinfo = localtime(&rawtime);
 	str_size = strftime((char*)tx_packet->data, TIME_STR_SIZE, "%A, %B, %d, %Y, %T-%z", timeinfo);
 
+	// 发送
+	truncate_packet(tx_packet, str_size);
+	xudp_out(udp, src_ip, src_port, tx_packet);
+
 	return XNET_ERR_OK;
 }
 
