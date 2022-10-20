@@ -25,6 +25,7 @@ void xudp_in(xudp_t* udp, xipaddr_t* src_ip, xnet_packet_t* packet) {
 	// 非 0 才是需要检查
 	if (pre_checksum != 0) {
 		uint16_t checksum = checksum_peso(src_ip, &netif_ipaddr, XNET_PROTOCOL_UDP, (uint16_t*)udp_hdr, swap_order16(udp_hdr->total_len));
+		checksum = (checksum == 0) ? 0xffff : checksum;
 		if (pre_checksum != checksum) {
 			printf("error: UDP checksum invalid\n");
 			return;

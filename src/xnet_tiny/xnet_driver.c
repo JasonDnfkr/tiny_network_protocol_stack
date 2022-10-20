@@ -12,7 +12,7 @@ void xnet_init(void) {
     xip_init();
     xicmp_init();
     xudp_init();
-    xtcp_init();
+    //xtcp_init();
 }
 
 

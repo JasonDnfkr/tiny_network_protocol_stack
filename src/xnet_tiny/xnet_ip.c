@@ -4,6 +4,7 @@
 #include "include/xnet_ether.h"
 #include "include/xnet_sys.h"
 #include "include/xnet_udp.h"
+#include "include/xnet_tcp.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -70,6 +71,11 @@ void xip_in(xnet_packet_t* packet) {
     case XNET_PROTOCOL_ICMP:
         remove_header(packet, header_size);
         xicmp_in(&src_ip, packet);
+        break;
+
+    case XNET_PROTOCOL_TCP:
+        remove_header(packet, header_size);
+        xtcp_in(&src_ip, packet);
         break;
 
     default:

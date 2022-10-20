@@ -7,6 +7,34 @@ void xtcp_init() {
 	memset(tcp_socket, 0, sizeof(tcp_socket));
 }
 
+
+void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
+	xtcp_hdr_t* tcp_hdr = (xtcp_hdr_t*)packet->data;
+
+	if (packet->size < sizeof(xtcp_hdr_t)) {
+		return;
+	}
+
+	uint16_t pre_checksum;
+
+	pre_checksum = tcp_hdr->checksum;
+	tcp_hdr->checksum = 0;
+
+	// 如果接收的包 checksum 为 0，则不要检查。
+	// 非 0 才是需要检查
+	if (pre_checksum != 0) {
+		uint16_t checksum = checksum_peso(remote_ip, &netif_ipaddr, XNET_PROTOCOL_TCP, (uint16_t*)tcp_hdr, packet->size);
+		checksum = (checksum == 0) ? 0xffff : checksum;
+		if (pre_checksum != checksum) {
+			printf("error: TCP checksum invalid\n");
+			return;
+		}
+	}
+
+	printf("received TCP packet\n");
+}
+
+
 xtcp_t* xtcp_alloc() {
 	xtcp_t* tcp;
 	xtcp_t* end;

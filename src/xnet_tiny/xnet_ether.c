@@ -68,10 +68,11 @@ void ethernet_in(xnet_packet_t* packet) {
 
     switch (protocol) {
     case XNET_PROTOCOL_ARP:
-        printf("received ARP protocol\n");
+        //printf("received ARP protocol\n");
         remove_header(packet, sizeof(xether_hdr_t));
         xarp_in(packet);
         break;
+
     case XNET_PROTOCOL_IP:
         remove_header(packet, sizeof(xether_hdr_t));
         xip_in(packet);

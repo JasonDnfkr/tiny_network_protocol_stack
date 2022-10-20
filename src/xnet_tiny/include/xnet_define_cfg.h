@@ -16,9 +16,11 @@
 #define XARP_CFG_ENTRY_OK_TMO		(20)// ARP 表持续时间：20 seconds
 #define XARP_CFG_ENTRY_PENDING_TMO	(2) // ARP 表超时后，等待的时间：2 seconds
 #define XARP_CFG_MAX_RETRIES		40  // ARP 表超时重传的最大次数：40 次
+
 #define XARP_ENTRY_FREE				0   // ARP 表不存在
 #define XARP_ENTRY_OK				1   // ARP 表就绪，状态可用
 #define XARP_ENTRY_PENDING			2   // ARP 表等待修改
+
 #define XARP_TIMER_PERIOD			1   // ARP 表自检的时间：1 second
 
 
@@ -48,6 +50,7 @@ typedef enum _xnet_protocol_t {
 	XNET_PROTOCOL_IP   = 0x0800, // IP   0x0800
 	XNET_PROTOCOL_ICMP = 0x1,	 // ICMP 0x1
 	XNET_PROTOCOL_UDP  = 17,	 // UDP  17
+	XNET_PROTOCOL_TCP  = 6,		 // TCP  6
 } xnet_protocol_t;
 
 
