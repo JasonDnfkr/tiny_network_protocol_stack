@@ -38,6 +38,9 @@
 
 #define XUDP_CFG_MAX_UDP			10  // UDP 最大数量
 
+#define XTCP_CFG_MAX_TCP			40  // TCP 最大数量
+
+
 
 // 协议代码
 typedef enum _xnet_protocol_t {

@@ -4,6 +4,7 @@
 #include "include/xnet_ip.h"
 #include "include/xnet_icmp.h"
 #include "include/xnet_udp.h"
+#include "include/xnet_tcp.h"
 
 void xnet_init(void) {
     ethernet_init();
@@ -11,6 +12,7 @@ void xnet_init(void) {
     xip_init();
     xicmp_init();
     xudp_init();
+    xtcp_init();
 }
 
 

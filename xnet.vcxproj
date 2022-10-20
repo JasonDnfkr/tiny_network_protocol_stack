@@ -32,6 +32,7 @@
     <ClCompile Include="src\xnet_tiny\xnet_ip.c" />
     <ClCompile Include="src\xnet_tiny\xnet_packet.c" />
     <ClCompile Include="src\xnet_tiny\xnet_sys.c" />
+    <ClCompile Include="src\xnet_tiny\xnet_tcp.c" />
     <ClCompile Include="src\xnet_tiny\xnet_tiny.c" />
     <ClCompile Include="src\xnet_tiny\xnet_udp.c" />
   </ItemGroup>
@@ -47,6 +48,7 @@
     <ClInclude Include="src\xnet_tiny\include\xnet_ip.h" />
     <ClInclude Include="src\xnet_tiny\include\xnet_packet.h" />
     <ClInclude Include="src\xnet_tiny\include\xnet_sys.h" />
+    <ClInclude Include="src\xnet_tiny\include\xnet_tcp.h" />
     <ClInclude Include="src\xnet_tiny\include\xnet_udp.h" />
     <ClInclude Include="src\xnet_tiny\xnet_tiny.h" />
   </ItemGroup>
