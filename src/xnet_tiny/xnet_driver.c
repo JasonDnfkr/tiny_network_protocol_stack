@@ -6,13 +6,16 @@
 #include "include/xnet_udp.h"
 #include "include/xnet_tcp.h"
 
+#include <stdlib.h>
+
 void xnet_init(void) {
     ethernet_init();
     xarp_init();
     xip_init();
     xicmp_init();
     xudp_init();
-    //xtcp_init();
+    xtcp_init();
+    srand(xsys_get_time());
 }
 
 

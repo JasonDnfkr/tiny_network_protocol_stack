@@ -6,6 +6,7 @@ const xnet_time_t xsys_get_time(void) {
 }
 
 // 校验和
+// 所有的数据都按小端进行计算
 uint16_t checksum16(uint16_t* buf, uint16_t len, uint16_t pre_sum, int complement) {
     uint32_t checksum = pre_sum; //pre_sum
     uint16_t high;
@@ -27,6 +28,7 @@ uint16_t checksum16(uint16_t* buf, uint16_t len, uint16_t pre_sum, int complemen
 }
 
 // 伪首部校验和
+// 所有的数据都按小端进行计算
 uint16_t checksum_peso(const xipaddr_t* src_ip, const xipaddr_t* dest_ip, uint8_t protocol, uint16_t* buf, uint16_t len) {
     uint8_t zero_protocol[] = { 0, protocol };
     uint16_t c_len = swap_order16(len);

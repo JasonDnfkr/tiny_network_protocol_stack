@@ -158,7 +158,12 @@ void xarp_in(xnet_packet_t* packet) {
 // arp 表 存在时间查询
 void xarp_poll(void) {
     if (xnet_check_tmo(&arp_timer, XARP_TIMER_PERIOD)) {
-        printf("[arp_entry timeout: %d]\n", arp_entry.tmo);
+        if (arp_entry.tmo > 0) {
+            //printf("[arp_entry timeout: %d]\n", arp_entry.tmo);
+        }
+        else {
+            printf(".");
+        }
         switch (arp_entry.state) {
         case XARP_ENTRY_OK:
             arp_entry.tmo--;

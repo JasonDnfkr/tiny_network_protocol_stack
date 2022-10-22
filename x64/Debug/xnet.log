@@ -1,16 +1,2 @@
-﻿  app.c
-  port_pcap.c
-  xserver_datetime.c
-  xnet_arp.c
-  xnet_define_cfg.c
-  xnet_driver.c
-  xnet_ether.c
-  xnet_icmp.c
-  xnet_ip.c
-  xnet_packet.c
-  xnet_sys.c
-  xnet_tcp.c
-E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\src\xnet_tiny\xnet_tcp.c(29,4): warning C4013: “printf”未定义；假设外部返回 int
-  xnet_udp.c
-  正在生成代码...
+﻿  xnet_ip.c
   xnet.vcxproj -> E:\Data\Work\Job\Cpp\webserver\Learning-DIY-TCPIP_WEB\xnet_tiny_c0000\x64\Debug\xnet.exe

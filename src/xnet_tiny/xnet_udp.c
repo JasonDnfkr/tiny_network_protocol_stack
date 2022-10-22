@@ -29,7 +29,7 @@ void xudp_in(xudp_t* udp, xipaddr_t* src_ip, xnet_packet_t* packet) {
 		if (pre_checksum != checksum) {
 			printf("error: UDP checksum invalid\n");
 			return;
-		 }
+		}
 	}
 
 	printf("received UDP packet\n");
