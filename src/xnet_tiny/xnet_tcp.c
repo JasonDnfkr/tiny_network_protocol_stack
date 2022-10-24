@@ -15,20 +15,28 @@ static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	xnet_packet_t* packet;
 	xtcp_hdr_t* tcp_hdr;
 	xnet_err_t err;
+	uint16_t opt_size = (flags & XTCP_FLAG_SYN) ? 4 : 0;
 
-	packet = xnet_alloc_for_send(sizeof(xtcp_hdr_t));
+
+	packet = xnet_alloc_for_send(sizeof(xtcp_hdr_t) + opt_size);
 	tcp_hdr = (xtcp_hdr_t*)packet->data;
 
 	tcp_hdr->src_port = swap_order16(tcp->local_port);
 	tcp_hdr->dest_port = swap_order16(tcp->remote_port);
-	tcp_hdr->seq = tcp->next_seq;
+	tcp_hdr->seq = swap_order32(tcp->next_seq);
 	tcp_hdr->ack = swap_order32(tcp->ack);
 	tcp_hdr->window = 1024;
 	tcp_hdr->checksum = 0;
 	tcp_hdr->urgent_ptr = 0;
+	if (flags & XTCP_FLAG_SYN) {
+		uint8_t* opt_data = packet->data + sizeof(xtcp_hdr_t);
+		opt_data[0] = XTCP_KIND_MSS;
+		opt_data[1] = 4;
+		*(uint16_t*)(opt_data + 2) = swap_order16(XTCP_MSS_DEFAULT);
+	}
 
 	tcp_hdr->hdr_flags.all = 0;
-	tcp_hdr->hdr_flags.hdr_len = sizeof(xtcp_hdr_t) / 4;
+	tcp_hdr->hdr_flags.hdr_len = (sizeof(xtcp_hdr_t) + opt_size) / 4;
 	tcp_hdr->hdr_flags.flags = flags;
 	tcp_hdr->hdr_flags.all = swap_order16(tcp_hdr->hdr_flags.all);
 
@@ -116,14 +124,14 @@ static void tcp_process_accept(xtcp_t* listen_tcp, xipaddr_t* remote_ip, xtcp_hd
 		uint32_t ack = tcp_hdr->seq + 1;
 		xnet_err_t err;
 
-		new_tcp->state			= XTCP_STATE_SYN_RECVD;
-		new_tcp->local_port		= listen_tcp->local_port;
-		new_tcp->handler		= listen_tcp->handler;
-		new_tcp->remote_port	= tcp_hdr->src_port;
+		new_tcp->state = XTCP_STATE_SYN_RECVD;
+		new_tcp->local_port = listen_tcp->local_port;
+		new_tcp->handler = listen_tcp->handler;
+		new_tcp->remote_port = tcp_hdr->src_port;
 		new_tcp->remote_ip.addr = remote_ip->addr;
-		new_tcp->ack			= ack;
-		new_tcp->next_seq		= tcp_get_init_seq();
-		new_tcp->remote_win		= tcp_hdr->window;
+		new_tcp->ack = ack;
+		new_tcp->next_seq = tcp_get_init_seq();
+		new_tcp->remote_win = tcp_hdr->window;
 
 		tcp_read_mss(new_tcp, tcp_hdr);
 
@@ -132,18 +140,15 @@ static void tcp_process_accept(xtcp_t* listen_tcp, xipaddr_t* remote_ip, xtcp_hd
 			xtcp_free(new_tcp);
 			return;
 		}
-
 		return;
 	}
 	else { // 在监听状态下只接受连接请求，其他状态不管
-		tcp_send_reset(tcp_hdr->seq, listen_tcp->local_port, remote_ip, tcp_hdr->src_port);
+	tcp_send_reset(tcp_hdr->seq, listen_tcp->local_port, remote_ip, tcp_hdr->src_port);
 	}
 };
 
 
 // 接收 tcp 数据包
-// 有以下几种情况：
-// 1. 
 void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 	xtcp_hdr_t* tcp_hdr = (xtcp_hdr_t*)packet->data;
 
@@ -171,19 +176,19 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 	printf("received TCP packet\n");
 
 	// 用于后续计算，直接转换成小端
-	tcp_hdr->src_port	   = swap_order16(tcp_hdr->src_port);
-	tcp_hdr->dest_port	   = swap_order16(tcp_hdr->dest_port);
+	tcp_hdr->src_port = swap_order16(tcp_hdr->src_port);
+	tcp_hdr->dest_port = swap_order16(tcp_hdr->dest_port);
 	tcp_hdr->hdr_flags.all = swap_order16(tcp_hdr->hdr_flags.all);
-	tcp_hdr->seq		   = swap_order32(tcp_hdr->seq);
-	tcp_hdr->ack		   = swap_order32(tcp_hdr->ack);
+	tcp_hdr->seq = swap_order32(tcp_hdr->seq);
+	tcp_hdr->ack = swap_order32(tcp_hdr->ack);
 	// checksum 用不上
-	tcp_hdr->window        = swap_order16(tcp_hdr->window);
+	tcp_hdr->window = swap_order16(tcp_hdr->window);
 
 	tcp = xtcp_find(remote_ip, tcp_hdr->src_port, tcp_hdr->dest_port);
-	
+
 	// 如果没有找到符合要求的
 	// 符合要求：(本地端口、远程端口、远程IP一致)
-	// 符合要求：或 (本地端口一致、但其他不一致，但处于 LISTEN 状态) 
+	// 符合要求：或 (处于 LISTEN 状态时，本地端口一致、但其他不一致) 
 	if (tcp == (xtcp_t*)0) {
 		tcp_send_reset(tcp_hdr->seq + 1, tcp_hdr->dest_port, remote_ip, tcp_hdr->src_port);
 		return;
@@ -191,12 +196,15 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 
 	tcp->remote_win = tcp_hdr->window;
 
+	// 判断是否 LISTEN 状态
 	if (tcp->state == XTCP_STATE_LISTEN) {
 		tcp_process_accept(tcp, remote_ip, tcp_hdr);
 		return;
 	}
 
+	// 判断是否合法：hdr->seq == tcp->ack
 	if (tcp_hdr->seq != tcp->ack) {
+		printf("error: tcp_hdr->seq != tcp->ack");
 		tcp_send_reset(tcp_hdr->seq + 1, tcp_hdr->dest_port, remote_ip, tcp_hdr->src_port);
 		return;
 	}
@@ -208,11 +216,39 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 			tcp->state = XTCP_STATE_ESTABLISHED;
 			tcp->handler(tcp, XTCP_CONN_CONNECTED);
 		}
+		break;
 
+	case XTCP_STATE_FIN_WAIT_1:
+		if ((tcp_hdr->hdr_flags.flags & (XTCP_FLAG_FIN | XTCP_FLAG_ACK)) == (XTCP_FLAG_FIN | XTCP_FLAG_ACK)) {
+			xtcp_free(tcp);
+		}
+		else if (tcp_hdr->hdr_flags.flags & XTCP_FLAG_ACK) {
+			tcp->state = XTCP_STATE_FIN_WAIT_2;
+		}
+		break;
+
+	case XTCP_STATE_FIN_WAIT_2:
+		if (tcp_hdr->hdr_flags.flags & XTCP_FLAG_FIN) {
+			tcp->ack++;
+			tcp_send(tcp, XTCP_FLAG_ACK);
+			xtcp_free(tcp);
+		}
 		break;
 
 	case XTCP_STATE_ESTABLISHED:
-		printf("connection ok\n");
+		//printf("tcp control block status: ESTABLISHED\n");
+		if (tcp_hdr->hdr_flags.flags & (XTCP_FLAG_FIN)) {
+			tcp->state = XTCP_STATE_LAST_ACK;
+			tcp->ack++;
+			tcp_send(tcp, XTCP_FLAG_FIN | XTCP_FLAG_ACK);
+		}
+		break;
+
+	case XTCP_STATE_LAST_ACK:
+		if (tcp_hdr->hdr_flags.flags & XTCP_FLAG_ACK) {
+			tcp->handler(tcp, XTCP_CONN_CLOSED);
+			xtcp_free(tcp);
+		}
 		break;
 	}
 }
@@ -244,7 +280,10 @@ void xtcp_free(xtcp_t* tcp) {
 	tcp->state = XTCP_STATE_FREE;
 }
 
-
+// 根据 tcp 报文的 remote_ip，端口号寻找本地的 tcp 控制块
+// 返回情况：
+// 1. remote_ip，remote_port, 本地 port 都符合，则返回
+// 2. 只有 remote_port 符合，但该 tcp 控制块 state 处于 LISTEN 
 xtcp_t* xtcp_find(xipaddr_t* remote_ip, uint16_t remote_port, uint16_t local_port) {
 	xtcp_t* tcp;
 	xtcp_t* end;
@@ -304,6 +343,17 @@ xnet_err_t xtcp_listen(xtcp_t* tcp) {
 
 
 xnet_err_t xtcp_close(xtcp_t* tcp) {
-	xtcp_free(tcp);
+	xnet_err_t err;
+	if (tcp->state == XTCP_STATE_ESTABLISHED) {
+		err = tcp_send(tcp, XTCP_FLAG_FIN | XTCP_FLAG_ACK);
+		if (err < 0) {
+			return err;
+		}
+
+		tcp->state = XTCP_STATE_FIN_WAIT_1;
+	}
+	else {
+		xtcp_free(tcp);
+	}
 	return XNET_ERR_OK;
 }

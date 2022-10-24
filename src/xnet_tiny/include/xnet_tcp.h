@@ -10,7 +10,7 @@
 #define XTCP_KIND_MSS			2
 #define XTCP_MSS_DEFAULT		1460
 
-#define tcp_get_init_seq() ((rand() << 16) + rand())
+#define tcp_get_init_seq()		((rand() << 16) + rand())
 
 typedef enum _xtcp_state_t {
 	XTCP_STATE_FREE,
@@ -18,6 +18,13 @@ typedef enum _xtcp_state_t {
 	XTCP_STATE_LISTEN,
 	XTCP_STATE_SYN_RECVD,
 	XTCP_STATE_ESTABLISHED,
+	XTCP_STATE_FIN_WAIT_1,
+	XTCP_STATE_FIN_WAIT_2,
+	XTCP_STATE_CLOSING,
+	XTCP_STATE_TIMED_WAIT,
+	XTCP_STATE_CLOSE_WAIT,
+	XTCP_STATE_LAST_ACK,
+
 } xtcp_state_t;
 
 
