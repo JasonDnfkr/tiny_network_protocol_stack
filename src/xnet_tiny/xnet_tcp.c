@@ -1,5 +1,6 @@
 #include "include/xnet_tcp.h"
 #include "include/xnet_sys.h"
+#include "include/xnet_ether.h"
 #include "include/xnet_ip.h"
 
 #include <string.h>
@@ -11,14 +12,92 @@ void xtcp_init() {
 }
 
 
+
+
+static void xtcp_buf_init(xtcp_buf_t* tcp_buf) {
+	tcp_buf->front = 0;
+	tcp_buf->tail = 0;
+	tcp_buf->data_count = 0;
+	tcp_buf->unacked_count = 0;
+	tcp_buf->next = 0;
+}
+
+
+static uint16_t xtcp_buf_free_count(xtcp_buf_t* tcp_buf) {
+	return XTCP_CFG_RTX_BUF_SIZE - tcp_buf->data_count;
+}
+
+
+static uint16_t xtcp_buf_wait_send_count(xtcp_buf_t* tcp_buf) {
+	return tcp_buf->data_count - tcp_buf->unacked_count;
+}
+
+
+static void tcp_buf_add_acked_count(xtcp_buf_t* tcp_buf, uint16_t size) {
+	tcp_buf->tail += size;
+	if (tcp_buf->tail >= XTCP_CFG_RTX_BUF_SIZE) {
+		tcp_buf->tail = 0;
+	}
+
+	tcp_buf->data_count -= size;
+	tcp_buf->unacked_count -= size;
+}
+
+
+static void tcp_buf_add_unacked_count(xtcp_buf_t* tcp_buf, uint16_t size) {
+	tcp_buf->unacked_count += size;
+}
+
+
+static uint16_t xtcp_buf_write(xtcp_buf_t* tcp_buf, uint8_t* from, uint16_t size) {
+	size = min(size, xtcp_buf_free_count(tcp_buf));
+
+	for (int i = 0; i < size; i++) {
+		tcp_buf->data[tcp_buf->front++] = *from++;
+		if (tcp_buf->front >= XTCP_CFG_RTX_BUF_SIZE) {
+			tcp_buf->front = 0;
+		}
+	}
+
+	tcp_buf->data_count += size;
+	return size;
+}
+
+
+static uint16_t xtcp_buf_read_for_send(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_t size) {
+	size = min(size, xtcp_buf_wait_send_count(tcp_buf));
+	for (int i = 0; i < size; i++) {
+		*to++ = tcp_buf->data[tcp_buf->next++];
+		if (tcp_buf->next >= XTCP_CFG_RTX_BUF_SIZE) {
+			tcp_buf->next = 0;
+		}
+	}
+
+	return size;
+}
+
+
 static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	xnet_packet_t* packet;
 	xtcp_hdr_t* tcp_hdr;
 	xnet_err_t err;
+
+	uint16_t data_size = xtcp_buf_wait_send_count(&tcp->tx_buf);
 	uint16_t opt_size = (flags & XTCP_FLAG_SYN) ? 4 : 0;
 
+	if (tcp->remote_win > 0) {
+		data_size = min(data_size, tcp->remote_win);
+		data_size = min(data_size, tcp->remote_mss); // 和 ip 分片有关，这里不涉及
+		if (data_size + opt_size > XTCP_DATA_MAX_SIZE) {
+			data_size = XTCP_DATA_MAX_SIZE - opt_size;
+		}
+	}
+	else {
+		data_size = 0;
+	}
 
-	packet = xnet_alloc_for_send(sizeof(xtcp_hdr_t) + opt_size);
+
+	packet = xnet_alloc_for_send(data_size + sizeof(xtcp_hdr_t) + opt_size);
 	tcp_hdr = (xtcp_hdr_t*)packet->data;
 
 	tcp_hdr->src_port = swap_order16(tcp->local_port);
@@ -40,6 +119,8 @@ static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	tcp_hdr->hdr_flags.flags = flags;
 	tcp_hdr->hdr_flags.all = swap_order16(tcp_hdr->hdr_flags.all);
 
+	xtcp_buf_read_for_send(&tcp->tx_buf, packet->data + opt_size + sizeof(xtcp_hdr_t), data_size);
+
 	tcp_hdr->checksum = checksum_peso(&netif_ipaddr, &tcp->remote_ip, XNET_PROTOCOL_TCP, (uint16_t*)packet->data, packet->size);
 	tcp_hdr->checksum = tcp_hdr->checksum ? tcp_hdr->checksum : 0xffff;
 
@@ -49,6 +130,10 @@ static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	if (err < 0) {
 		return err;
 	}
+
+	tcp->remote_win -= data_size;
+	tcp->next_seq += data_size;
+	tcp_buf_add_unacked_count(&tcp->tx_buf, data_size);
 
 	if (flags & (XTCP_FLAG_SYN | XTCP_FLAG_FIN)) {
 		tcp->next_seq++;
@@ -124,14 +209,17 @@ static void tcp_process_accept(xtcp_t* listen_tcp, xipaddr_t* remote_ip, xtcp_hd
 		uint32_t ack = tcp_hdr->seq + 1;
 		xnet_err_t err;
 
-		new_tcp->state = XTCP_STATE_SYN_RECVD;
-		new_tcp->local_port = listen_tcp->local_port;
-		new_tcp->handler = listen_tcp->handler;
-		new_tcp->remote_port = tcp_hdr->src_port;
+		uint32_t init_seq = tcp_get_init_seq();
+
+		new_tcp->state			= XTCP_STATE_SYN_RECVD;
+		new_tcp->local_port		= listen_tcp->local_port;
+		new_tcp->handler		= listen_tcp->handler;
+		new_tcp->remote_port	= tcp_hdr->src_port;
 		new_tcp->remote_ip.addr = remote_ip->addr;
-		new_tcp->ack = ack;
-		new_tcp->next_seq = tcp_get_init_seq();
-		new_tcp->remote_win = tcp_hdr->window;
+		new_tcp->ack			= ack;
+		new_tcp->next_seq		= init_seq;
+		new_tcp->unacked_seq	= init_seq;
+		new_tcp->remote_win		= tcp_hdr->window;
 
 		tcp_read_mss(new_tcp, tcp_hdr);
 
@@ -213,6 +301,7 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 	switch (tcp->state) {
 	case XTCP_STATE_SYN_RECVD:
 		if (tcp_hdr->hdr_flags.flags & XTCP_FLAG_ACK) {
+			tcp->unacked_seq++;	// SYN 报文
 			tcp->state = XTCP_STATE_ESTABLISHED;
 			tcp->handler(tcp, XTCP_CONN_CONNECTED);
 		}
@@ -229,18 +318,29 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 
 	case XTCP_STATE_FIN_WAIT_2:
 		if (tcp_hdr->hdr_flags.flags & XTCP_FLAG_FIN) {
-			tcp->ack++;
+			//tcp->ack++;
+			tcp->ack = tcp_hdr->seq + 1;
 			tcp_send(tcp, XTCP_FLAG_ACK);
 			xtcp_free(tcp);
 		}
 		break;
 
 	case XTCP_STATE_ESTABLISHED:
-		//printf("tcp control block status: ESTABLISHED\n");
+		if (tcp_hdr->hdr_flags.flags & (XTCP_FLAG_ACK)) {
+			if (tcp->unacked_seq < tcp_hdr->ack && tcp_hdr->ack <= tcp->next_seq) {
+				uint16_t curr_ack_size = tcp_hdr->ack - tcp->unacked_seq;
+				tcp_buf_add_acked_count(&tcp->tx_buf, curr_ack_size);
+				tcp->unacked_seq += curr_ack_size;
+			}
+		}
 		if (tcp_hdr->hdr_flags.flags & (XTCP_FLAG_FIN)) {
 			tcp->state = XTCP_STATE_LAST_ACK;
-			tcp->ack++;
+			//tcp->ack++;
+			tcp->ack = tcp_hdr->seq + 1;
 			tcp_send(tcp, XTCP_FLAG_FIN | XTCP_FLAG_ACK);
+		}
+		else if (xtcp_buf_wait_send_count(&tcp->tx_buf)) {
+			tcp_send(tcp, XTCP_FLAG_ACK);
 		}
 		break;
 
@@ -260,14 +360,19 @@ xtcp_t* xtcp_alloc() {
 
 	for (tcp = tcp_socket, end = tcp_socket + XTCP_CFG_MAX_TCP; tcp < end; tcp++) {
 		if (tcp->state == XTCP_STATE_FREE) {
+			uint32_t init_seq = tcp_get_init_seq();
+
 			tcp->local_port		= 0;
 			tcp->remote_port	= 0;
 			tcp->remote_ip.addr = 0;
 			tcp->handler		= (xtcp_handler_t)0;
 			tcp->remote_win		= XTCP_MSS_DEFAULT;
 			tcp->remote_mss		= XTCP_MSS_DEFAULT;
-			tcp->next_seq		= tcp_get_init_seq();
+			tcp->next_seq		= init_seq;
+			tcp->unacked_seq	= init_seq;
 			tcp->ack			= 0;
+			
+			xtcp_buf_init(&tcp->tx_buf);
 			return tcp;
 		}
 	}
@@ -356,4 +461,25 @@ xnet_err_t xtcp_close(xtcp_t* tcp) {
 		xtcp_free(tcp);
 	}
 	return XNET_ERR_OK;
+}
+
+
+
+
+int xtcp_write(xtcp_t* tcp, uint8_t* data, uint16_t size) {
+	int sended_count = 0;
+
+	if ((tcp->state != XTCP_STATE_ESTABLISHED)) {
+		printf("return -1\n");
+		return -1;
+	}
+
+	sended_count = xtcp_buf_write(&tcp->tx_buf, data, size);
+
+	if (sended_count > 0) {
+		printf("xtcp write\n");
+		tcp_send(tcp, XTCP_FLAG_ACK);
+	}
+
+	return sended_count;
 }

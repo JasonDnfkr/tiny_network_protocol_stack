@@ -3,9 +3,26 @@
 
 #include <stdio.h>
 
+static uint8_t tx_buffer[1024];
+
 static xnet_err_t http_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
+	static char* num = "0123456789ABCDEF";
+	
 	if (event == XTCP_CONN_CONNECTED) {
 		printf("http connected\n");
+		for (int i = 0; i < 1024; i++) {
+			tx_buffer[i] = num[i % 16];
+		}
+
+		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+
+		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+
+
 		//xtcp_close(tcp);
 ;	}
 	else if (event == XTCP_CONN_CLOSED) {

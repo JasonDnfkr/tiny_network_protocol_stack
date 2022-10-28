@@ -41,7 +41,8 @@
 #define XUDP_CFG_MAX_UDP			10  // UDP 最大数量
 
 #define XTCP_CFG_MAX_TCP			40  // TCP 最大数量
-
+#define XTCP_CFG_RTX_BUF_SIZE		128	// TCP 发送缓存
+#define XTCP_DATA_MAX_SIZE			(XNET_CFG_PACKET_MAX_SIZE - sizeof(xether_hdr_t) - sizeof(xip_hdr_t) - sizeof(xtcp_hdr_t))
 
 
 // 协议代码

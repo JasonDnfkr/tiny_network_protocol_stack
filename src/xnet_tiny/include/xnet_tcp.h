@@ -69,6 +69,16 @@ typedef struct _xtcp_hdr_t {
 
 #pragma pack()
 
+#pragma pack(1)
+typedef struct _xtcp_buf_t {
+	uint16_t data_count;		// 已占用缓冲区的数据数量
+	uint16_t unacked_count;		// 未确认的数据数量
+	uint8_t	 front;	
+	uint8_t	 tail;
+	uint8_t  next;
+	uint8_t	 data[XTCP_CFG_RTX_BUF_SIZE];
+} xtcp_buf_t;
+#pragma pack()
 
 struct _xtcp_t {
 	xtcp_state_t   state;
@@ -77,12 +87,15 @@ struct _xtcp_t {
 	xipaddr_t	   remote_ip;
 
 	uint32_t	   next_seq;
+	uint32_t	   unacked_seq;
 	uint32_t	   ack;
 
 	uint16_t	   remote_mss;
 	uint16_t	   remote_win;
 
 	xtcp_handler_t handler;
+
+	xtcp_buf_t	   tx_buf;
 };
 
 
@@ -107,5 +120,8 @@ xnet_err_t xtcp_bind(xtcp_t* tcp, uint16_t local_port);
 xnet_err_t xtcp_listen(xtcp_t* tcp);
 
 xnet_err_t xtcp_close(xtcp_t* tcp);
+
+
+int xtcp_write(xtcp_t* tcp, uint8_t* data, uint16_t size);
 
 #endif // !XNET_TCP_H
