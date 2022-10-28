@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-static uint8_t tx_buffer[1024];
+static uint8_t tx_buffer[32];
 
 static xnet_err_t http_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
 	static char* num = "0123456789ABCDEF";
@@ -16,11 +16,11 @@ static xnet_err_t http_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
 
 		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
 
-		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
-		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
-		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
-		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
-		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
 
 
 		//xtcp_close(tcp);

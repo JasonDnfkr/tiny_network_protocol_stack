@@ -41,3 +41,5 @@ uint16_t checksum_peso(const xipaddr_t* src_ip, const xipaddr_t* dest_ip, uint8_
 
     return checksum16(buf, len, sum, 1);
 }
+
+int timer_enabled;

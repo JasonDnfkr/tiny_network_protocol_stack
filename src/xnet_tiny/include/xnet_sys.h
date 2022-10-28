@@ -27,4 +27,6 @@ uint16_t checksum16(uint16_t* buf, uint16_t len, uint16_t pre_sum, int complemen
 uint16_t checksum_peso(const xipaddr_t* src_ip, const xipaddr_t* dest_ip, uint8_t protocol, uint16_t* buf, uint16_t len);
 
 
+extern int timer_enabled;
+
 #endif // !XNET_SYS_H

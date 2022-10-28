@@ -68,6 +68,9 @@
     <ClCompile Include="src\xnet_tiny\xnet_tcp.c">
       <Filter>xnet_tiny</Filter>
     </ClCompile>
+    <ClCompile Include="src\xnet_app\xtimer.c">
+      <Filter>xnet_app</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\lib\xnet\pcap_device.h">
@@ -111,6 +114,9 @@
     </ClInclude>
     <ClInclude Include="src\xnet_tiny\include\xnet_tcp.h">
       <Filter>xnet_tiny</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xnet_app\xtimer.h">
+      <Filter>xnet_app</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
