@@ -5,6 +5,7 @@
 #include "include/xnet_icmp.h"
 #include "include/xnet_udp.h"
 #include "include/xnet_tcp.h"
+#include "../xnet_app/xtimer.h"
 
 #include <stdlib.h>
 
@@ -24,4 +25,5 @@ void xnet_poll(void) {
     // 有包则去 ethernet_poll() 处理
     ethernet_poll();
     xarp_poll();
+    timer_poll(&timer_time, 5);
 }

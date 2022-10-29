@@ -1,8 +1,14 @@
 #include "xtimer.h"
 #include <stdio.h>
 
+int timer_enabled;
 
-void timer_send(xtcp_t* tcp) {
+xtcp_t* timer_tcp;
+
+time_t timer_time;
+
+
+static void timer_send(xtcp_t* tcp) {
 	static char* num = "0123456789ABCDEF";
 	char tx_buffer[16];
 	for (int i = 0; i < 16; i++) {
@@ -14,13 +20,32 @@ void timer_send(xtcp_t* tcp) {
 
 xnet_err_t timer_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
 	if (event == XTCP_CONN_CONNECTED) {
-		// TODO: poll open
+		timer_enabled = 1;
+		timer_tcp = tcp;
 	}
 	else if (event == XTCP_CONN_CLOSED) {
 		printf("timer closed\n");
+		timer_enabled = 0;
 	}
 
 	return XNET_ERR_OK;
+}
+
+void timer_poll(xnet_time_t* time, uint32_t sec) {
+	xnet_time_t curr = xsys_get_time();
+
+	if (sec == 0) {
+		*time = curr;
+		return 1;
+	}
+
+	if (curr - *time >= sec) {
+		*time = curr;
+		if (timer_enabled) {
+			printf("[%d sec]\n", sec);
+			timer_send(timer_tcp);
+		}
+	}
 }
 
 

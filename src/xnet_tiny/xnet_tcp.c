@@ -64,6 +64,19 @@ static uint16_t xtcp_buf_write(xtcp_buf_t* tcp_buf, uint8_t* from, uint16_t size
 }
 
 
+static uint16_t xtcp_buf_read(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_t size) {
+	size = min(size, tcp_buf->data_count);
+	for (int i = 0; i < size; i++) {
+		*to++ = tcp_buf->data[tcp_buf->tail++];
+		if (tcp_buf->tail >= XTCP_CFG_RTX_BUF_SIZE) {
+			tcp_buf->tail = 0;
+		}
+	}
+	tcp_buf->data_count -= size;
+	return size;
+}
+
+
 static uint16_t xtcp_buf_read_for_send(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_t size) {
 	size = min(size, xtcp_buf_wait_send_count(tcp_buf));
 	for (int i = 0; i < size; i++) {
@@ -77,6 +90,16 @@ static uint16_t xtcp_buf_read_for_send(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_
 }
 
 
+static uint16_t tcp_recv(xtcp_t* tcp, uint8_t flags, uint8_t* from, uint16_t size) {
+	uint16_t read_size = xtcp_buf_write(&tcp->rx_buf, from, size);
+	tcp->ack += read_size;
+	if (flags & (XTCP_FLAG_FIN | XTCP_FLAG_SYN)) {
+		tcp->ack++;
+	}
+	return read_size;
+}
+
+
 static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	xnet_packet_t* packet;
 	xtcp_hdr_t* tcp_hdr;
@@ -85,6 +108,9 @@ static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	uint16_t data_size = xtcp_buf_wait_send_count(&tcp->tx_buf);
 	uint16_t opt_size = (flags & XTCP_FLAG_SYN) ? 4 : 0;
 
+	// 这里判断对方的 window 大小
+	// 如果自己待发送的数据 大于 对方 window 的大小，
+	// 会被直接截断
 	if (tcp->remote_win > 0) {
 		data_size = min(data_size, tcp->remote_win);
 		data_size = min(data_size, tcp->remote_mss); // 和 ip 分片有关，这里不涉及
@@ -104,7 +130,7 @@ static xnet_err_t tcp_send(xtcp_t* tcp, uint8_t flags) {
 	tcp_hdr->dest_port = swap_order16(tcp->remote_port);
 	tcp_hdr->seq = swap_order32(tcp->next_seq);
 	tcp_hdr->ack = swap_order32(tcp->ack);
-	tcp_hdr->window = 1024;
+	tcp_hdr->window = swap_order16(xtcp_buf_free_count(&tcp->rx_buf));
 	tcp_hdr->checksum = 0;
 	tcp_hdr->urgent_ptr = 0;
 	if (flags & XTCP_FLAG_SYN) {
@@ -326,6 +352,8 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 		break;
 
 	case XTCP_STATE_ESTABLISHED:
+		// 先确认是否是 ACK
+		// 如果是 ACK，则判断是否是响应报文 (hdr ack 在 未确认的缓冲区之间) 
 		if (tcp_hdr->hdr_flags.flags & (XTCP_FLAG_ACK)) {
 			if (tcp->unacked_seq < tcp_hdr->ack && tcp_hdr->ack <= tcp->next_seq) {
 				uint16_t curr_ack_size = tcp_hdr->ack - tcp->unacked_seq;
@@ -333,15 +361,25 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 				tcp->unacked_seq += curr_ack_size;
 			}
 		}
+
+		// 将packet中的数据写入rx缓存中
+		uint16_t read_size = tcp_recv(tcp, (uint8_t)tcp_hdr->hdr_flags.flags, packet->data, packet->size);
+
+
 		if (tcp_hdr->hdr_flags.flags & (XTCP_FLAG_FIN)) {
 			tcp->state = XTCP_STATE_LAST_ACK;
 			//tcp->ack++;
 			tcp->ack = tcp_hdr->seq + 1;
 			tcp_send(tcp, XTCP_FLAG_FIN | XTCP_FLAG_ACK);
 		}
+		else if (read_size) {
+			tcp_send(tcp, XTCP_FLAG_ACK);
+			tcp->handler(tcp, XTCP_CONN_DATA_RECV);
+		}
 		else if (xtcp_buf_wait_send_count(&tcp->tx_buf)) {
 			tcp_send(tcp, XTCP_FLAG_ACK);
 		}
+
 		break;
 
 	case XTCP_STATE_LAST_ACK:
@@ -373,6 +411,7 @@ xtcp_t* xtcp_alloc() {
 			tcp->ack			= 0;
 			
 			xtcp_buf_init(&tcp->tx_buf);
+			xtcp_buf_init(&tcp->rx_buf);
 			return tcp;
 		}
 	}
@@ -482,4 +521,8 @@ int xtcp_write(xtcp_t* tcp, uint8_t* data, uint16_t size) {
 	}
 
 	return sended_count;
+}
+
+int xtcp_read(xtcp_t* tcp, uint8_t* data, uint16_t size) {
+	return xtcp_buf_read(&tcp->rx_buf, data, size);
 }

@@ -3,18 +3,18 @@
 
 #include <stdio.h>
 
-static uint8_t tx_buffer[32];
+static uint8_t tx_buffer[1280];
 
 static xnet_err_t http_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
 	static char* num = "0123456789ABCDEF";
 	
 	if (event == XTCP_CONN_CONNECTED) {
 		printf("http connected\n");
-		for (int i = 0; i < 1024; i++) {
-			tx_buffer[i] = num[i % 16];
-		}
+		//for (int i = 0; i < 1024; i++) {
+		//	tx_buffer[i] = num[i % 16];
+		//}
 
-		xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
+		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
 
 		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
 		//xtcp_write(tcp, tx_buffer, sizeof(tx_buffer));
@@ -25,6 +25,19 @@ static xnet_err_t http_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
 
 		//xtcp_close(tcp);
 ;	}
+	else if (event == XTCP_CONN_DATA_RECV) {
+		uint8_t* data = tx_buffer;
+		// tcp 控制块已经将接收到的数据存入了 rx buffer 
+		// 这里将数据从 rx 缓存里读出
+		uint16_t read_size = xtcp_read(tcp, tx_buffer, sizeof(tx_buffer));
+		
+		while (read_size) {
+			printf("[]");
+			uint16_t curr_size = xtcp_write(tcp, data, read_size);
+			data += curr_size;
+			read_size -= curr_size;
+		}
+	}
 	else if (event == XTCP_CONN_CLOSED) {
 		printf("http closed\n");
 	}

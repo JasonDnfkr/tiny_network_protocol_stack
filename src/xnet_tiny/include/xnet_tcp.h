@@ -96,6 +96,7 @@ struct _xtcp_t {
 	xtcp_handler_t handler;
 
 	xtcp_buf_t	   tx_buf;
+	xtcp_buf_t	   rx_buf;
 };
 
 
@@ -123,5 +124,7 @@ xnet_err_t xtcp_close(xtcp_t* tcp);
 
 
 int xtcp_write(xtcp_t* tcp, uint8_t* data, uint16_t size);
+
+int xtcp_read(xtcp_t* tcp, uint8_t* data, uint16_t size);
 
 #endif // !XNET_TCP_H
