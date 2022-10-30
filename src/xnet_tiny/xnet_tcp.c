@@ -48,7 +48,8 @@ static void tcp_buf_add_unacked_count(xtcp_buf_t* tcp_buf, uint16_t size) {
 	tcp_buf->unacked_count += size;
 }
 
-
+// 将 tcp 缓存中的数据写入 from 字符串中
+// size 的大小不会超过 buf 中空闲的大小
 static uint16_t xtcp_buf_write(xtcp_buf_t* tcp_buf, uint8_t* from, uint16_t size) {
 	size = min(size, xtcp_buf_free_count(tcp_buf));
 
@@ -64,6 +65,8 @@ static uint16_t xtcp_buf_write(xtcp_buf_t* tcp_buf, uint8_t* from, uint16_t size
 }
 
 
+// 将 tcp_buf 的内容读入至 to 中
+// size 的大小不会超过 tcp_buf 中可读取的数据量 (tcp_buf->data_count)
 static uint16_t xtcp_buf_read(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_t size) {
 	size = min(size, tcp_buf->data_count);
 	for (int i = 0; i < size; i++) {
@@ -89,7 +92,8 @@ static uint16_t xtcp_buf_read_for_send(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_
 	return size;
 }
 
-
+// 将 from 的数据写入 tcp 的读缓存中(rx_buf)
+// 并将 tcp 的 ack 值增大
 static uint16_t tcp_recv(xtcp_t* tcp, uint8_t flags, uint8_t* from, uint16_t size) {
 	uint16_t read_size = xtcp_buf_write(&tcp->rx_buf, from, size);
 	tcp->ack += read_size;
@@ -372,10 +376,13 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 			tcp->ack = tcp_hdr->seq + 1;
 			tcp_send(tcp, XTCP_FLAG_FIN | XTCP_FLAG_ACK);
 		}
-		else if (read_size) {
+		else if (read_size) { // 接收到了数据，发送确认报文
 			tcp_send(tcp, XTCP_FLAG_ACK);
 			tcp->handler(tcp, XTCP_CONN_DATA_RECV);
 		}
+		// 关键！
+		// 判断 tcp_buf 中是否有需要传送的数据
+		// 判断依据是 
 		else if (xtcp_buf_wait_send_count(&tcp->tx_buf)) {
 			tcp_send(tcp, XTCP_FLAG_ACK);
 		}
@@ -523,6 +530,8 @@ int xtcp_write(xtcp_t* tcp, uint8_t* data, uint16_t size) {
 	return sended_count;
 }
 
+
+//将 tcp 控制块中，写缓存(rx_buf)的内容读入至 data
 int xtcp_read(xtcp_t* tcp, uint8_t* data, uint16_t size) {
 	return xtcp_buf_read(&tcp->rx_buf, data, size);
 }
