@@ -101,12 +101,12 @@ static xnet_err_t http_handler(xtcp_t* tcp, xtcp_conn_state_t event) {
 
 static int get_line(xtcp_t* tcp, char* buf, int size) {
 	int i = 0;
-	printf("getline<<\n");
+	//printf("getline<<\n");
 	while (i < size) {
 		char c;
 
 		if (xtcp_read(tcp, (uint8_t*)&c, 1) > 0) {
-			printf("%c", c);
+			//printf("%c", c);
 			if ((c != '\n') && (c != '\r')) {
 				buf[i++] = c;
 			}
@@ -117,7 +117,7 @@ static int get_line(xtcp_t* tcp, char* buf, int size) {
 
 		xnet_poll();
 	}
-	printf("\n>>getline\n");
+	//printf("\n>>getline\n");
 
 	buf[i] = '\0';
 	return i; //返回写到的总量
@@ -148,6 +148,14 @@ static void http_close(xtcp_t* tcp) {
 	printf("http close.\n");
 }
 
+
+static void send_404_not_found(xtcp_t* tcp) {
+	sprintf(tx_buffer,
+		"HTTP/1.0 404 NOT FOUND\r\n\r\n");
+	http_send(tcp, tx_buffer, sizeof(tx_buffer));
+}
+
+
 // 组建 http 报头，并根据路径发送文件
 static void send_file(xtcp_t* tcp, const char* url) {
 	FILE* file;
@@ -158,6 +166,7 @@ static void send_file(xtcp_t* tcp, const char* url) {
 
 	file = fopen(file_path, "rb");
 	if (file == NULL) {
+		send_404_not_found(tcp);
 		return;
 	}
 
