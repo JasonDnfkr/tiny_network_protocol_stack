@@ -15,6 +15,7 @@ int main(void) {
 
     printf("xnet running\n");
     while (1) {
+        xserver_http_run();
         xnet_poll();
     }
 

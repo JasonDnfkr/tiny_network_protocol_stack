@@ -7,6 +7,13 @@
 #include <stdio.h>
 
 
+static void print_buf(const char* buf) {
+	for (int i = 0; i < strlen(buf); i++) {
+		printf("%c", buf[i]);
+	}
+}
+
+
 void xtcp_init() {
 	memset(tcp_socket, 0, sizeof(tcp_socket));
 }
@@ -48,7 +55,7 @@ static void tcp_buf_add_unacked_count(xtcp_buf_t* tcp_buf, uint16_t size) {
 	tcp_buf->unacked_count += size;
 }
 
-// 将 tcp 缓存中的数据写入 from 字符串中
+// 将 from 字符串中的数据写入 tcp 缓存中
 // size 的大小不会超过 buf 中空闲的大小
 static uint16_t xtcp_buf_write(xtcp_buf_t* tcp_buf, uint8_t* from, uint16_t size) {
 	size = min(size, xtcp_buf_free_count(tcp_buf));
@@ -96,6 +103,10 @@ static uint16_t xtcp_buf_read_for_send(xtcp_buf_t* tcp_buf, uint8_t* to, uint16_
 // 并将 tcp 的 ack 值增大
 static uint16_t tcp_recv(xtcp_t* tcp, uint8_t flags, uint8_t* from, uint16_t size) {
 	uint16_t read_size = xtcp_buf_write(&tcp->rx_buf, from, size);
+	printf("tcp_recv:\n");
+	print_buf(tcp->rx_buf.data);
+	printf("\norigin from:\n");
+	print_buf(from);
 	tcp->ack += read_size;
 	if (flags & (XTCP_FLAG_FIN | XTCP_FLAG_SYN)) {
 		tcp->ack++;
@@ -359,14 +370,14 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 		// 先确认是否是 ACK
 		// 如果是 ACK，则判断是否是响应报文 (hdr ack 在 未确认的缓冲区之间) 
 		if (tcp_hdr->hdr_flags.flags & (XTCP_FLAG_ACK)) {
-			if (tcp->unacked_seq < tcp_hdr->ack && tcp_hdr->ack <= tcp->next_seq) {
+			if (tcp->unacked_seq <= tcp_hdr->ack && tcp_hdr->ack <= tcp->next_seq) {
 				uint16_t curr_ack_size = tcp_hdr->ack - tcp->unacked_seq;
 				tcp_buf_add_acked_count(&tcp->tx_buf, curr_ack_size);
 				tcp->unacked_seq += curr_ack_size;
 			}
 		}
 
-		// 将packet中的数据写入rx缓存中
+		// (A) 将 packet 中的数据写入 rx 缓存中
 		uint16_t read_size = tcp_recv(tcp, (uint8_t)tcp_hdr->hdr_flags.flags, packet->data, packet->size);
 
 
@@ -380,9 +391,9 @@ void xtcp_in(xipaddr_t* remote_ip, xnet_packet_t* packet) {
 			tcp_send(tcp, XTCP_FLAG_ACK);
 			tcp->handler(tcp, XTCP_CONN_DATA_RECV);
 		}
-		// 关键！
-		// 判断 tcp_buf 中是否有需要传送的数据
-		// 判断依据是 
+		// 或者看看有没有数据要发，有的话，同时发数据即ack
+		// 没有收到数据，可能是对方发来的ACK。此时，有数据有就发数据，没数据就不理会
+		// 什么情况下会有这个？
 		else if (xtcp_buf_wait_send_count(&tcp->tx_buf)) {
 			tcp_send(tcp, XTCP_FLAG_ACK);
 		}
@@ -510,8 +521,7 @@ xnet_err_t xtcp_close(xtcp_t* tcp) {
 }
 
 
-
-
+// 将 size 字节的 data 发送出去
 int xtcp_write(xtcp_t* tcp, uint8_t* data, uint16_t size) {
 	int sended_count = 0;
 

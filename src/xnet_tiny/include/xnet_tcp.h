@@ -73,9 +73,9 @@ typedef struct _xtcp_hdr_t {
 typedef struct _xtcp_buf_t {
 	uint16_t data_count;		// 已占用缓冲区的数据数量
 	uint16_t unacked_count;		// 未确认的数据数量
-	uint8_t	 front;	
-	uint8_t	 tail;
-	uint8_t  next;
+	uint16_t	 front;	
+	uint16_t	 tail;
+	uint16_t  next;
 	uint8_t	 data[XTCP_CFG_RTX_BUF_SIZE];
 } xtcp_buf_t;
 #pragma pack()
